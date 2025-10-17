@@ -438,7 +438,7 @@
 				</div>
 			  )}
 
-			  <h1 className="text-2xl font-bold text-center mb-4">🤑90% người chơi dừng lại trước khi thắng lớn!🤑</h1>
+			  <h1 className="text-2xl font-bold text-center mb-4">90% người chơi dừng lại trước khi thắng lớn!💰</h1>
 
 			  {gameEnded && (
 				<div className="text-center text-red-600 font-bold mb-3 text-lg">
@@ -774,7 +774,7 @@
 					  <li key={globalIndex} className={`border rounded p-2 text-sm ${h.isDouble ? "bg-red-50 border-red-400" : "bg-gray-50"}`}>
 						<strong className={h.isDouble ? "text-red-600" : ""}>
 						  Ván {roundNum}{h.isDouble ? " (DOUBLE)" : ""}
-						</strong>: 🏆 <span className={h.isDouble ? "text-red-600 font-bold" : "text-black font-semibold"}>{h.winner}</span>
+						</strong>: 🏆 <span className={h.isDouble ? "text-red-600 font-bold" : "text-green-600 font-semibold"}>{h.winner}</span>
 						<div className="text-gray-600 mt-1 pl-2">
 						  {h.changes.map(c => (
 							// Sử dụng Flexbox để căn đều tuyệt đối
