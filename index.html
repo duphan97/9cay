@@ -9,66 +9,106 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    @keyframes pulse-red {0%,100%{background:#ef4444}50%{background:#b91c1c}}
-    .pulse{animation:pulse-red 1s infinite}
-    /* THÊM HIỆU ỨNG MỚI CHO NÚT GHI ĐIỂM DOUBLE */
-    @keyframes pulse-green {0%,100%{background:#10b981}50%{background:#047857}} /* Dùng màu xanh lá cây */
-    .pulse-green{animation:pulse-green 1s infinite}
-    /* END THÊM HIỆU ỨNG MỚI */
-    @keyframes winner-glow {
-      0%,100%{background:#d1fae5;box-shadow:0 0 8px #16a34a}
-      50%{background:#86efac;box-shadow:0 0 16px #22c55e}
+    /* Dùng 1 animation chung cho pulse, màu sắc dùng tailwind */
+    @keyframes pulse-base {0%,100%{opacity:1}50%{opacity:0.7}}
+    .pulse-effect{animation:pulse-base 1s infinite}
+    
+    /* CẬP NHẬT HIỆU ỨNG GLOW CỰC SẶC SỠ cho người thắng */
+    @keyframes winner-glow-enhanced {
+      0%,100%{background:#e6fffa;border: 3px solid #047857;box-shadow:0 0 15px rgba(4, 120, 87, 0.8)} /* Xanh nhạt, viền xanh đậm */
+      50%{background:#6ee7b7;border: 3px solid #065f46;box-shadow:0 0 25px rgba(6, 95, 70, 0.9)} /* Xanh sáng hơn, viền đậm hơn */
     }
-    .winner-glow{animation:winner-glow 1.2s infinite}
+    .winner-glow{animation:winner-glow-enhanced 1.2s infinite}
+    /* END CẬP NHẬT HIỆU ỨNG */
+    
+    /* Tên người chơi trong lịch sử: In đậm, màu đen */
+    .history-player-name {
+        font-weight: 700; 
+        color: #1f2937; 
+        /* Flex grow để chiếm hết không gian còn lại */
+        flex-grow: 1; 
+        overflow: hidden; /* Tránh tràn khi tên quá dài */
+        text-overflow: ellipsis; 
+        white-space: nowrap;
+        margin-right: 4px; /* Khoảng cách nhỏ trước dấu : */
+    }
+    
+    /* Container cho mỗi dòng lịch sử để căn đều bằng flexbox */
+    .history-item-line {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-top: 2px;
+    }
+    
+    /* Cố định chiều rộng cho điểm để căn đều tuyệt đối */
+    .delta-score {
+        display: inline-block;
+        width: 40px; /* Độ rộng cố định, đủ cho "+99" */
+        text-align: right;
+        font-weight: 600; /* in đậm */
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
   <div id="root" class="w-full max-w-md"></div>
 
 	<script type="text/babel">
-		const { useState, useEffect } = React;
+		const { useState, useEffect, useMemo } = React;
 
 		function App() {
+		  // Dữ liệu chính
 		  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem("players")) || []);
 		  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem("kickedPlayers")) || []);
 		  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("history")) || []);
+		  
+		  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm)
+		  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem("totalRounds")) || null);
+		  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
+		  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem("roundsStartCount")) || 0);
+
+		  // Trạng thái phiên hiện tại
 		  const [newName, setNewName] = useState("");
 		  const [winner, setWinner] = useState("");
 		  const [doubleNext, setDoubleNext] = useState(false);
 		  const [manualMode, setManualMode] = useState(false);
+		  
+		  // Quản lý thông báo
 		  const [message, setMessage] = useState("");
 		  const [messageWinner, setMessageWinner] = useState("");
 		  const [messageType, setMessageType] = useState("info");
-		  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem("totalRounds")) || null);
-		  const [remainingRounds, setRemainingRounds] = useState(() => JSON.parse(localStorage.getItem("remainingRounds")) || null);
-		  const [gameEnded, setGameEnded] = useState(false);
-		  const [showSetRoundsModal, setShowSetRoundsModal] = useState(false); // Đổi tên state để dùng cho Modal
-		  const [roundInput, setRoundInput] = useState("");
-		  const [showResetConfirm, setShowResetConfirm] = useState(false);
-		  const [showKickConfirm, setShowKickConfirm] = useState(false);
-		  const [playerToKick, setPlayerToKick] = useState(null); // { name, score, index }
 		  
-		  const [showComebackConfirm, setShowComebackConfirm] = useState(false);
-		  const [playerToComeback, setPlayerToComeback] = useState(null); // { player, index }
+		  // Tối ưu: Gộp trạng thái Modal và dữ liệu liên quan
+		  const [modal, setModal] = useState({ type: null, data: null }); 
+		  
+		  // Tính toán trạng thái vòng đấu
+		  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
+		  const currentRound = recordedRounds + 1;
+		  
+		  const effectiveRemainingRounds = useMemo(() => {
+			if (totalRounds === null) return null;
+			// Số ván đã chơi kể từ lần set cuối cùng
+			const playedSinceSet = recordedRounds - roundsStartCount; 
+			// Ván còn lại = Tổng số ván đã set - Số ván đã chơi kể từ lần set
+			const remaining = totalRounds - playedSinceSet;
+			return remaining; 
+		  }, [totalRounds, recordedRounds, roundsStartCount]);
+		  
+		  const gameEnded = useMemo(() => 
+			totalRounds !== null && effectiveRemainingRounds !== null && effectiveRemainingRounds <= 0,
+			[totalRounds, effectiveRemainingRounds]
+		  );
 
-		  // Bổ sung các state cho Modal xác nhận mới
-		  const [showRecordConfirm, setShowRecordConfirm] = useState(false);
-		  const [showExportConfirm, setShowExportConfirm] = useState(false);
-
-
+		  // Lưu trữ dữ liệu vào localStorage
 		  useEffect(() => {
 			localStorage.setItem("players", JSON.stringify(players));
 			localStorage.setItem("kickedPlayers", JSON.stringify(kickedPlayers));
 			localStorage.setItem("history", JSON.stringify(history));
 			localStorage.setItem("totalRounds", JSON.stringify(totalRounds));
-			localStorage.setItem("remainingRounds", JSON.stringify(remainingRounds));
-		  }, [players, kickedPlayers, history, totalRounds, remainingRounds]);
+			localStorage.setItem("roundsStartCount", JSON.stringify(roundsStartCount)); 
+		  }, [players, kickedPlayers, history, totalRounds, roundsStartCount]);
 
-		  useEffect(() => {
-			if (remainingRounds !== null && remainingRounds <= 0) setGameEnded(true);
-		  }, [remainingRounds]);
-
-		  // Điều chỉnh hàm showTempMessage để hiển thị ra giữa màn hình và lớn hơn
+		  // Điều chỉnh hàm showTempMessage
 		  const showTempMessage = (text, type = "info", duration = 2500, winnerName = "") => {
 			setMessage(text);
 			setMessageType(type);
@@ -100,36 +140,32 @@
 			setNewName("");
 		  };
 
-		  const confirmReset = () => setShowResetConfirm(true);
-		  const cancelReset = () => setShowResetConfirm(false);
+		  const confirmReset = () => setModal({ type: 'reset', data: null });
+		  const cancelModal = () => setModal({ type: null, data: null });
+		  
 		  const resetGame = () => {
 			setPlayers([]); setKickedPlayers([]); setHistory([]); setWinner("");
 			setDoubleNext(false); setManualMode(false);
-			setTotalRounds(null); setRemainingRounds(null);
-			setGameEnded(false); localStorage.clear();
-			setShowResetConfirm(false);
-			setShowKickConfirm(false);
-			setPlayerToKick(null);
-			setShowComebackConfirm(false);
-			setPlayerToComeback(null);
+			setTotalRounds(null); 
+			setRoundsStartCount(0);
+			localStorage.clear();
+			setModal({ type: null, data: null });
 		  };
 
-		  // Bổ sung: Hàm hiển thị Modal xác nhận ghi điểm
+		  // Hàm hiển thị Modal xác nhận ghi điểm
 		  const promptRecord = () => {
 			if (gameEnded) return;
 			if (players.length < 2)
 			  return showTempMessage("⚠️ Cần ít nhất 2 người chơi để bắt đầu!", "warning");
-			// Điều chỉnh: Cảnh báo chưa chọn người chiến thắng hiển thị ra giữa và lớn hơn
 			if (!winner)
 			  return showTempMessage("⚠️ Vui lòng chọn người thắng!", "error");
 			
-			setShowRecordConfirm(true);
+			setModal({ type: 'record', data: null });
 		  };
-		  const cancelRecord = () => setShowRecordConfirm(false);
 
-		  // Điều chỉnh: Hàm thực hiện ghi điểm (recordRound)
+		  // Hàm thực hiện ghi điểm (executeRecord)
 		  const executeRecord = () => {
-			setShowRecordConfirm(false); // Đóng modal xác nhận
+			setModal({ type: null, data: null });
 
 			const numLosers = players.length - 1;
 			const pointPerLoser = doubleNext ? 2 : 1;
@@ -142,65 +178,89 @@
 
 			const changes = updatedPlayers.map((p, i) => ({
 			  name: p.name,
-			  delta: p.score - players[i].score
+			  delta: p.score - players[i].score,
 			}));
 
-			const newHistory = [...history, { type: "record", winner, changes, isDouble: doubleNext }]; // Thêm type: "record"
+			const newHistory = [...history, { type: "record", winner, changes, isDouble: doubleNext }];
 			setPlayers(updatedPlayers);
 			setHistory(newHistory);
 			setWinner("");
 			setDoubleNext(false);
 
-			const roundNum = newHistory.filter(h => h.type === "record").length;
 			const messageText = doubleNext 
-			  ? `✅ Đã ghi điểm ván ${roundNum} (DOUBLE) cho`
-			  : `✅ Đã ghi điểm ván ${roundNum} cho`;
-
-			// Điều chỉnh: Thông báo đã ghi điểm hiển thị ra giữa và lớn hơn, kèm tên người thắng
+			  ? `✅ Đã ghi điểm ván ${currentRound} (DOUBLE) cho`
+			  : `✅ Đã ghi điểm ván ${currentRound} cho`;
+			
 			showTempMessage(messageText, "success", 3000, winner); 
-
-			if (totalRounds && remainingRounds !== null) {
-			  const newRemaining = remainingRounds - 1;
-			  setRemainingRounds(newRemaining);
-			  if (newRemaining <= 0) setGameEnded(true);
-			}
 		  };
-
-		  // Điều chỉnh: Hàm Hoàn tác (undoLast)
-		  const undoLast = () => {
+		  
+		  // THAY ĐỔI: Hàm hiển thị Modal xác nhận Hoàn tác (promptUndo)
+		  const promptUndo = () => {
 			if (gameEnded || history.length === 0) return;
 			
-			// 1. Tìm bản ghi điểm gần nhất để hoàn tác
+			// 1. Tìm index của bản ghi *record* cuối cùng
 			const lastRecordIndex = history.map(h => h.type).lastIndexOf("record");
 			if (lastRecordIndex === -1) {
 				 return showTempMessage("⚠️ Không có ván nào để hoàn tác!", "warning");
 			}
+            
+            // 2. KIỂM TRA KHÔNG ĐƯỢC HOÀN TÁC 2 LẦN LIÊN TIẾP
+            const lastAction = history[history.length - 1].type;
+            if (lastAction === "undo") {
+                return showTempMessage("⚠️ Vừa hoàn tác rồi, không thể hoàn tác liên tiếp!", "error");
+            }
 			
-			const last = history[lastRecordIndex];
+			const lastRecord = history[lastRecordIndex];
 			const undoRoundNum = history.filter((_, idx) => idx <= lastRecordIndex && _.type === "record").length;
 			
-			// 2. Hoàn điểm: revert điểm bằng cách trừ đi thay đổi cũ
+			setModal({ 
+				type: 'undo', 
+				data: { 
+					lastRecord, 
+					undoRoundNum,
+					lastRecordIndex // Truyền thêm index để xóa
+				} 
+			});
+		  };
+
+		  // THAY ĐỔI: Hàm thực hiện Hoàn tác (executeUndo) - XÓA bản ghi record cuối cùng
+		  const executeUndo = () => {
+			const { lastRecord, undoRoundNum, lastRecordIndex } = modal.data;
+			setModal({ type: null, data: null }); // Đóng modal xác nhận
+
+			// 1. Hoàn điểm: revert điểm bằng cách trừ đi thay đổi cũ
 			const reverted = players.map(p => {
-			  const change = last.changes.find(c => c.name === p.name)?.delta || 0;
+			  const change = lastRecord.changes.find(c => c.name === p.name)?.delta || 0;
 			  return { ...p, score: p.score - change };
 			});
 			
-			// 3. Bổ sung: Ghi lại sự kiện hoàn tác vào lịch sử (KHÔNG XÓA VÁN CŨ)
-			const newHistory = [...history, { 
-				type: "undo", 
-				targetRound: undoRoundNum, // Ván bị hoàn tác
-				undoChanges: last.changes, // Lưu lại thay đổi đã hoàn tác (ví dụ: +3, -1)
-				undoWinner: last.winner,
-				undoDouble: last.isDouble,
-				timestamp: new Date().toISOString()
-			}];
+			// 2. TẠO MẢNG HISTORY MỚI: Xóa bản ghi ghi điểm (record) cũ và thêm bản ghi hoàn tác (undo) mới
+			const tempHistory = [...history];
 			
+			// a) Xóa bản ghi ghi điểm (record) cuối cùng
+			tempHistory.splice(lastRecordIndex, 1);
+			
+			// b) Thêm bản ghi sự kiện hoàn tác (undo) mới
+			const undoEvent = { 
+				type: "undo", 
+				targetRound: undoRoundNum, 
+				undoChanges: lastRecord.changes, 
+				undoWinner: lastRecord.winner,
+				undoDouble: lastRecord.isDouble,
+				timestamp: new Date().toISOString()
+			};
+			
+			const newHistory = [...tempHistory, undoEvent];
+
+			// 3. Cập nhật State
 			setPlayers(reverted);
-			setHistory(newHistory);
+			setHistory(newHistory); // recordedRounds tự động giảm 1
 			setWinner("");
 			setDoubleNext(false);
+			
 			showTempMessage(`↩️ Đã hoàn tác Ván ${undoRoundNum}.`, "info");
 		  };
+
 
 		  const adjustScore = (i, delta) => {
 			const updated = [...players];
@@ -219,11 +279,11 @@
 
 		  const promptKick = (i) => {
 			if (manualMode) return;
-			setPlayerToKick({ ...players[i], index: i });
-			setShowKickConfirm(true);
+			setModal({ type: 'kick', data: { ...players[i], index: i } });
 		  };
 
 		  const executeKick = () => {
+			const playerToKick = modal.data;
 			if (!playerToKick) return;
 			const { name, index } = playerToKick;
 			
@@ -232,38 +292,23 @@
 			if (winner === name) setWinner("");
 			
 			showTempMessage(`🚫 ${name} đã dừng chơi!`);
-			setShowKickConfirm(false);
-			setPlayerToKick(null);
-		  };
-		  
-		  const cancelKick = () => {
-			  setShowKickConfirm(false);
-			  setPlayerToKick(null);
+			setModal({ type: null, data: null });
 		  };
 		  
 		  const promptComeback = (player, index) => {
 			  if (isComebackDisabled) return;
-			  setPlayerToComeback({ player, index });
-			  setShowComebackConfirm(true);
+			  setModal({ type: 'comeback', data: { player, index } });
 		  };
 		  
 		  const executeComeback = () => {
-			  if (!playerToComeback) return;
-			  const { player, index } = playerToComeback;
+			  const { player, index } = modal.data;
 
 			  setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== index));
 			  setPlayers([...players, player]);
 			  
 			  showTempMessage(`👋 ${player.name} đã quay trở lại!`, "info");
-			  setShowComebackConfirm(false);
-			  setPlayerToComeback(null);
+			  setModal({ type: null, data: null });
 		  };
-		  
-		  const cancelComeback = () => {
-			  setShowComebackConfirm(false);
-			  setPlayerToComeback(null);
-		  };
-
 
 		  const total = [...players, ...kickedPlayers].reduce((s, p) => s + p.score, 0);
 		  const totalOk = Math.abs(total) < 1e-6;
@@ -278,42 +323,44 @@
 			setManualMode(!manualMode);
 		  };
 
+		  // Bổ sung: State và logic cho Set Rounds
+		  const [roundInput, setRoundInput] = useState("");
+
+		  const promptSetRounds = () => {
+			// Hiển thị số ván còn lại (hoặc 5 ván mặc định) vào input
+			setRoundInput(effectiveRemainingRounds !== null && effectiveRemainingRounds > 0 ? String(effectiveRemainingRounds) : "5");
+			setModal({ type: 'setRounds', data: null });
+		  };
+
+		  // LOGIC applySetRounds
 		  const applySetRounds = () => {
 			const num = parseInt(roundInput);
 			if (isNaN(num) || num <= 0)
-			  return showTempMessage("⚠️ Nhập số hợp lệ!", "warning");
-			setTotalRounds(num);
-			setRemainingRounds(num);
-			setGameEnded(false);
-			// Thay đổi: Đóng Modal mới
-			setShowSetRoundsModal(false); 
+			  return showTempMessage("⚠️ Nhập số hợp lệ (> 0)!", "warning");
+			
+			// 1. Lưu số ván đã chơi TẠI THỜI ĐIỂM NÀY làm mốc bắt đầu đếm
+			setRoundsStartCount(recordedRounds);
+			
+			// 2. totalRounds là số ván CÒN LẠI được set (Mục tiêu đếm)
+			setTotalRounds(num); 
+			
+			setModal({ type: null, data: null });
 			setRoundInput("");
-			showTempMessage("✅ Đã đặt số ván còn lại!");
+			showTempMessage(`✅ Đã đặt còn ${num} ván nữa!`);
 		  };
-
-		  const currentRound = history.filter(h => h.type === "record").length + 1;
-		  const canSelectWinner = players.length >= 2 && !manualMode && !gameEnded;
-		  
-		  const isMaxPlayers = players.length >= 5;
-		  const isFeatureDisabled = manualMode || gameEnded;
-		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
-		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
 
 		  // Bổ sung: Hàm hiển thị Modal xác nhận xuất CSV
 		  const promptExport = () => {
 			if (history.length === 0 && players.length === 0) {
 				return showTempMessage("Chưa có dữ liệu để xuất!", "warning");
 			}
-			setShowExportConfirm(true);
+			setModal({ type: 'export', data: null });
 		  };
-		  const cancelExport = () => setShowExportConfirm(false);
-
 
 		  // START: Hàm export dữ liệu ra CSV (executeExport)
 		  const executeExport = () => {
-			setShowExportConfirm(false);
+			setModal({ type: null, data: null });
 
-			// 1. Dữ liệu Lịch sử
 			const allPlayerNames = [...new Set([...players.map(p => p.name), ...kickedPlayers.map(p => p.name)])];
 			
 			let csvContent = "";
@@ -335,8 +382,8 @@
 			csvContent += historyHeader.map(h => `"${h}"`).join(",") + "\n";
 			
 			let roundCounter = 0;
-			const allHistoryData = history.map((h, index) => {
-				if (h.type !== "record") return ""; // Chỉ xuất bản ghi điểm
+			const allHistoryData = history.map((h) => {
+				if (h.type !== "record") return ""; 
 
 				roundCounter++;
 				const row = [`${roundCounter}`, `"${h.winner}"`, `${h.isDouble ? 'Có' : 'Không'}`];
@@ -346,7 +393,7 @@
 					row.push(change ? `${change.delta > 0 ? '+' : ''}${change.delta}` : '0');
 				});
 				return row.join(",");
-			}).filter(row => row !== "").join("\n"); // Lọc bỏ các dòng trống (undo)
+			}).filter(row => row !== "").join("\n"); 
 
 			csvContent += allHistoryData;
 			
@@ -364,6 +411,12 @@
 			showTempMessage("✅ Đã xuất dữ liệu ra file CSV!", "info");
 		  };
 		  // END: Hàm export dữ liệu ra CSV
+
+		  const canSelectWinner = players.length >= 2 && !manualMode && !gameEnded;
+		  const isMaxPlayers = players.length >= 5;
+		  const isFeatureDisabled = manualMode || gameEnded;
+		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
+		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
 
 
 		  return (
@@ -385,7 +438,7 @@
 				</div>
 			  )}
 
-			  <h1 className="text-2xl font-bold text-center mb-4">🎯 Binh 9 cây</h1>
+			  <h1 className="text-2xl font-bold text-center mb-4">🤑90% người chơi dừng lại trước khi thắng lớn!🤑</h1>
 
 			  {gameEnded && (
 				<div className="text-center text-red-600 font-bold mb-3 text-lg">
@@ -479,8 +532,8 @@
 					</div>
 					<div className="text-gray-700 mt-1">
 					  🧮 Ván thứ: {currentRound}
-					  {remainingRounds !== null && totalRounds && (
-						<span> | ⏳ Còn {remainingRounds} / {totalRounds} ván</span>
+					  {totalRounds !== null && (
+						<span> | ⏳ Còn {effectiveRemainingRounds > 0 ? effectiveRemainingRounds : 0} / {totalRounds} ván</span>
 					  )}
 					</div>
 				  </div>
@@ -517,14 +570,14 @@
 				<>
 				  <div className="flex gap-2 mt-3">
 					<button 
-						className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-500"} ${doubleNext ? "pulse-green" : ""}`} 
+						className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-500"} ${doubleNext ? "pulse-effect bg-red-600" : ""}`} 
 						onClick={promptRecord} 
 						disabled={isFeatureDisabled}
 					>
 						{doubleNext ? "✅ Ghi điểm Double" : "✅ Ghi điểm"}
 					</button>
 					<button 
-						className={`flex-1 py-2 rounded text-white transition-all ${doubleNext ? "bg-red-500 pulse" : "bg-gray-400"} ${isFeatureDisabled ? "opacity-50 cursor-not-allowed" : ""}`} 
+						className={`flex-1 py-2 rounded text-white transition-all ${doubleNext ? "bg-red-500 pulse-effect" : "bg-gray-400"} ${isFeatureDisabled ? "opacity-50 cursor-not-allowed" : ""}`} 
 						onClick={() => setDoubleNext(!doubleNext)}
 						disabled={isFeatureDisabled}
 					>
@@ -532,7 +585,7 @@
 					</button>
 					<button 
 						className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-gray-500"}`} 
-						onClick={undoLast}
+						onClick={promptUndo}
 						disabled={isFeatureDisabled}
 					>↩️ Hoàn tác</button>
 				  </div>
@@ -540,12 +593,11 @@
 				  <div className="mt-3">
 					<button 
 						className={`w-full py-2 text-white rounded ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"}`} 
-						onClick={() => setShowSetRoundsModal(true)} // Thay đổi: Mở Modal mới
+						onClick={promptSetRounds}
 						disabled={isFeatureDisabled}
 					>
 					  🎯 Set số ván còn lại
 					</button>
-					{/* Đã xóa khối hiển thị input inline cũ */}
 				  </div>
 
 				  <button
@@ -574,69 +626,82 @@
 				<button className="bg-red-500 text-white px-3 py-2 rounded" onClick={confirmReset}>Reset</button>
 			  </div>
 
-			  {/* Modal Xác nhận Reset */}
-			  {showResetConfirm && (
+			  {/* START: Gộp các Modal */}
+			  {modal.type && (
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
-					<p className="font-semibold mb-4">Bạn có chắc muốn reset toàn bộ dữ liệu?</p>
-					<div className="flex justify-center gap-4">
-					  <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={resetGame}>Xác nhận</button>
-					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelReset}>Hủy</button>
-					</div>
-				  </div>
-				</div>
-			  )}
-			  
-			  {/* Modal Xác nhận Kick */}
-			  {showKickConfirm && playerToKick && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
-					<p className="font-semibold mb-4">Bạn có chắc muốn loại <span className="text-red-600 font-bold">{playerToKick.name}</span> khỏi trò chơi?</p>
-					<div className="flex justify-center gap-4">
-					  <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeKick}>Xác nhận</button>
-					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelKick}>Hủy</button>
-					</div>
-				  </div>
-				</div>
-			  )}
+				  <div className="bg-white p-5 rounded-xl shadow-lg text-center w-full max-w-sm mx-4">
+					
+					{/* Modal Xác nhận Reset */}
+					{modal.type === 'reset' && (
+						<>
+						  <p className="font-semibold mb-4">Reset toàn bộ dữ liệu?</p>
+						  <div className="flex justify-center gap-4">
+							<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={resetGame}>Xác nhận reset</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
+					
+					{/* Modal Xác nhận Kick */}
+					{modal.type === 'kick' && modal.data && (
+						<>
+						  <p className="font-semibold mb-4">Đá đít <span className="text-red-600 font-bold">{modal.data.name}</span> khỏi trò chơi?</p>
+						  <div className="flex justify-center gap-4">
+							<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeKick}>Xác nhận</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
 
-			  {/* Modal Xác nhận Comeback */}
-			  {showComebackConfirm && playerToComeback && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
-					<p className="font-semibold mb-4">Bạn có chắc muốn đưa <span className="text-green-600 font-bold">{playerToComeback.player.name}</span> quay lại trò chơi?</p>
-					<div className="flex justify-center gap-4">
-					  <button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeComeback}>Xác nhận</button>
-					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelComeback}>Hủy</button>
-					</div>
-				  </div>
-				</div>
-			  )}
-			  
-			  {/* Modal Xác nhận Ghi điểm */}
-			  {showRecordConfirm && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
-					<p className="font-semibold mb-4">
-					  Ghi điểm ván <span className="text-blue-600 font-bold">{currentRound}</span> 
-					  {doubleNext 
-						? <span className="text-red-600 font-bold"> (Double) </span> 
-						: " "}
-					  cho <span className="text-blue-600 font-bold">{winner}</span>?
-					</p>
-					<div className="flex justify-center gap-4">
-					  <button className={`text-white px-4 py-2 rounded ${doubleNext ? "bg-red-500" : "bg-green-500"}`} onClick={executeRecord}>Xác nhận</button>
-					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelRecord}>Hủy</button>
-					</div>
-				  </div>
-				</div>
-			  )}
+					{/* Modal Xác nhận Comeback */}
+					{modal.type === 'comeback' && modal.data && (
+						<>
+						  <p className="font-semibold mb-4">Đưa <span className="text-green-600 font-bold">{modal.data.player.name}</span> quay lại?</p>
+						  <div className="flex justify-center gap-4">
+							<button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeComeback}>Xác nhận</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
+					
+					{/* Modal Xác nhận Ghi điểm */}
+					{modal.type === 'record' && (
+						<>
+						  <p className="font-semibold mb-4">
+							Ghi điểm ván <span className="text-blue-600 font-bold">{currentRound}</span> 
+							{doubleNext 
+							  ? <span className="text-red-600 font-bold"> (Double) </span> 
+							  : " "}
+							cho <span className="text-blue-600 font-bold">{winner}</span>?
+						  </p>
+						  <div className="flex justify-center gap-4">
+							<button className={`text-white px-4 py-2 rounded ${doubleNext ? "bg-red-500" : "bg-green-500"}`} onClick={executeRecord}>Xác nhận ghi điểm</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
 
-			  {/* Bổ sung: Modal Set Rounds */}
-			  {showSetRoundsModal && (
-				  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-					  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
-						  <p className="font-semibold mb-4">🎯 Đặt số ván còn lại:</p>
+					{/* Modal Xác nhận Hoàn tác */}
+					{modal.type === 'undo' && modal.data && (
+						<>
+						  <p className="font-semibold mb-2 text-red-600">
+							HOÀN TÁC ván {modal.data.undoRoundNum}?
+						  </p>
+						  <div className='text-sm text-gray-700 mb-4 border p-2 rounded'>
+							Ván thắng của: <span className='font-bold'>{modal.data.lastRecord.winner}</span> 
+							{modal.data.lastRecord.isDouble && <span className='text-red-500 font-bold'> (DOUBLE)</span>}
+						  </div>
+						  <div className="flex justify-center gap-4">
+							<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeUndo}>Xác nhận Hoàn tác</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
+					
+					{/* Modal Set Rounds */}
+					{modal.type === 'setRounds' && (
+						<>
+						  <p className="font-semibold mb-4">🎯 Đặt số ván **còn lại**:</p>
 						  <input
 							  type="number"
 							  className="w-full border rounded px-3 py-2 mb-4 text-lg text-center"
@@ -658,29 +723,31 @@
 							  <button 
 								  className="bg-gray-400 text-white px-4 py-2 rounded" 
 								  onClick={() => {
-									  setShowSetRoundsModal(false);
+									  cancelModal();
 									  setRoundInput("");
 								  }}
 							  >
 								  Hủy
 							  </button>
 						  </div>
-					  </div>
-				  </div>
-			  )}
-			  
-			  {/* Bổ sung: Modal Xác nhận Export CSV */}
-			  {showExportConfirm && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
-					<p className="font-semibold mb-4">Bạn có chắc muốn xuất dữ liệu lịch sử và điểm hiện tại ra file CSV?</p>
-					<div className="flex justify-center gap-4">
-					  <button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeExport}>Xác nhận Export</button>
-					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelExport}>Hủy</button>
-					</div>
+						</>
+					)}
+					
+					{/* Modal Xác nhận Export CSV */}
+					{modal.type === 'export' && (
+						<>
+						  <p className="font-semibold mb-4">Xuất dữ liệu ra file CSV?</p>
+						  <div className="flex justify-center gap-4">
+							<button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeExport}>Xác nhận Export</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
+
 				  </div>
 				</div>
 			  )}
+			  {/* END: Gộp các Modal */}
 
 			  {/* Lịch sử */}
 			  <h2 className="text-lg font-semibold mt-4 mb-2">📜 Lịch sử</h2>
@@ -695,25 +762,14 @@
 						// Hiển thị sự kiện hoàn tác
 						return (
 							<li key={globalIndex} className="border border-yellow-500 rounded p-2 text-sm bg-yellow-100">
-								<strong>↩️ Đã hoàn tác Ván {h.targetRound}</strong> (Ván thắng của {h.undoWinner})
-								<div className="text-gray-600 mt-1 pl-2">
-									<strong>Hoàn điểm:</strong>
-									{h.undoChanges.map(c => (
-										// Tách mỗi người chơi ra 1 dòng
-										<div key={c.name} className="mt-0.5">
-											{c.name}: <span className="font-semibold text-blue-700">
-												{/* Hiển thị số điểm được hoàn lại: là giá trị ngược lại của c.delta */}
-												{(-c.delta) > 0 ? "+" : ""}{-c.delta}
-											</span>
-										</div>
-									))}
-								</div>
+								<strong>↩️ Đã hoàn tác Ván {h.targetRound}</strong>
 							</li>
 						);
 					}
 					
 					// Ván ghi điểm thông thường
 					const roundNum = history.filter((_, idx) => idx <= globalIndex && _.type === "record").length;
+                    
 					return (
 					  <li key={globalIndex} className={`border rounded p-2 text-sm ${h.isDouble ? "bg-red-50 border-red-400" : "bg-gray-50"}`}>
 						<strong className={h.isDouble ? "text-red-600" : ""}>
@@ -721,8 +777,22 @@
 						</strong>: 🏆 <span className={h.isDouble ? "text-red-600 font-bold" : "text-black font-semibold"}>{h.winner}</span>
 						<div className="text-gray-600 mt-1 pl-2">
 						  {h.changes.map(c => (
-							// Tách mỗi người chơi ra 1 dòng
-							<div key={c.name} className="mt-0.5">{c.name}: {c.delta > 0 ? "+" : ""}{c.delta}</div>
+							// Sử dụng Flexbox để căn đều tuyệt đối
+							<div key={c.name} className="history-item-line">
+                                
+                                {/* Cột 1: Tên người chơi (Flex-grow: 1) */}
+                                <div className="history-player-name">
+                                    {c.name}
+                                </div>
+                                
+                                {/* Cột 2: Dấu ":" */}
+                                <div>:</div>
+                                
+                                {/* Cột 3: +/- Điểm (Độ rộng cố định 40px, căn phải) */}
+                                <span className="delta-score">
+                                    {c.delta > 0 ? "+" : ""}{c.delta}
+                                </span>
+							</div>
 						  ))}
 						</div>
 					  </li>
