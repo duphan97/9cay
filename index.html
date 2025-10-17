@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎯 Binh 9 cây</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes pulse-red {0%,100%{background:#ef4444}50%{background:#b91c1c}}
+    .pulse{animation:pulse-red 1s infinite}
+    /* THÊM HIỆU ỨNG MỚI CHO NÚT GHI ĐIỂM DOUBLE */
+    @keyframes pulse-green {0%,100%{background:#10b981}50%{background:#047857}} /* Dùng màu xanh lá cây */
+    .pulse-green{animation:pulse-green 1s infinite}
+    /* END THÊM HIỆU ỨNG MỚI */
+    @keyframes winner-glow {
+      0%,100%{background:#d1fae5;box-shadow:0 0 8px #16a34a}
+      50%{background:#86efac;box-shadow:0 0 16px #22c55e}
+    }
+    .winner-glow{animation:winner-glow 1.2s infinite}
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+  <div id="root" class="w-full max-w-md"></div>
+
+	<script type="text/babel">
+		const { useState, useEffect } = React;
+
+		function App() {
+		  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem("players")) || []);
+		  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem("kickedPlayers")) || []);
+		  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("history")) || []);
+		  const [newName, setNewName] = useState("");
+		  const [winner, setWinner] = useState("");
+		  const [doubleNext, setDoubleNext] = useState(false);
+		  const [manualMode, setManualMode] = useState(false);
+		  const [message, setMessage] = useState("");
+		  const [messageWinner, setMessageWinner] = useState("");
+		  const [messageType, setMessageType] = useState("info");
+		  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem("totalRounds")) || null);
+		  const [remainingRounds, setRemainingRounds] = useState(() => JSON.parse(localStorage.getItem("remainingRounds")) || null);
+		  const [gameEnded, setGameEnded] = useState(false);
+		  const [showSetRoundsModal, setShowSetRoundsModal] = useState(false); // Đổi tên state để dùng cho Modal
+		  const [roundInput, setRoundInput] = useState("");
+		  const [showResetConfirm, setShowResetConfirm] = useState(false);
+		  const [showKickConfirm, setShowKickConfirm] = useState(false);
+		  const [playerToKick, setPlayerToKick] = useState(null); // { name, score, index }
+		  
+		  const [showComebackConfirm, setShowComebackConfirm] = useState(false);
+		  const [playerToComeback, setPlayerToComeback] = useState(null); // { player, index }
+
+		  // Bổ sung các state cho Modal xác nhận mới
+		  const [showRecordConfirm, setShowRecordConfirm] = useState(false);
+		  const [showExportConfirm, setShowExportConfirm] = useState(false);
+
+
+		  useEffect(() => {
+			localStorage.setItem("players", JSON.stringify(players));
+			localStorage.setItem("kickedPlayers", JSON.stringify(kickedPlayers));
+			localStorage.setItem("history", JSON.stringify(history));
+			localStorage.setItem("totalRounds", JSON.stringify(totalRounds));
+			localStorage.setItem("remainingRounds", JSON.stringify(remainingRounds));
+		  }, [players, kickedPlayers, history, totalRounds, remainingRounds]);
+
+		  useEffect(() => {
+			if (remainingRounds !== null && remainingRounds <= 0) setGameEnded(true);
+		  }, [remainingRounds]);
+
+		  // Điều chỉnh hàm showTempMessage để hiển thị ra giữa màn hình và lớn hơn
+		  const showTempMessage = (text, type = "info", duration = 2500, winnerName = "") => {
+			setMessage(text);
+			setMessageType(type);
+			setMessageWinner(winnerName);
+			setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
+		  };
+
+		  const addPlayer = () => {
+			const totalPlaying = players.length;
+			if (totalPlaying >= 5) return; 
+
+			const name = newName.trim();
+			if (!name) return;
+			
+			// Khôi phục người chơi đã dừng (qua nhập tên)
+			const existingKickedPlayerIndex = kickedPlayers.findIndex(p => p.name === name);
+			if (existingKickedPlayerIndex !== -1) {
+				const playerToRestore = kickedPlayers[existingKickedPlayerIndex];
+				setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== existingKickedPlayerIndex));
+				setPlayers([...players, playerToRestore]);
+				setNewName("");
+				return showTempMessage(`✅ ${name} đã quay lại trò chơi!`, "info");
+			}
+			
+			if (players.find(p => p.name === name))
+			  return showTempMessage("⚠️ Tên người chơi đã tồn tại!", "warning");
+			  
+			setPlayers([...players, { name, score: 0 }]);
+			setNewName("");
+		  };
+
+		  const confirmReset = () => setShowResetConfirm(true);
+		  const cancelReset = () => setShowResetConfirm(false);
+		  const resetGame = () => {
+			setPlayers([]); setKickedPlayers([]); setHistory([]); setWinner("");
+			setDoubleNext(false); setManualMode(false);
+			setTotalRounds(null); setRemainingRounds(null);
+			setGameEnded(false); localStorage.clear();
+			setShowResetConfirm(false);
+			setShowKickConfirm(false);
+			setPlayerToKick(null);
+			setShowComebackConfirm(false);
+			setPlayerToComeback(null);
+		  };
+
+		  // Bổ sung: Hàm hiển thị Modal xác nhận ghi điểm
+		  const promptRecord = () => {
+			if (gameEnded) return;
+			if (players.length < 2)
+			  return showTempMessage("⚠️ Cần ít nhất 2 người chơi để bắt đầu!", "warning");
+			// Điều chỉnh: Cảnh báo chưa chọn người chiến thắng hiển thị ra giữa và lớn hơn
+			if (!winner)
+			  return showTempMessage("⚠️ Vui lòng chọn người thắng!", "error");
+			
+			setShowRecordConfirm(true);
+		  };
+		  const cancelRecord = () => setShowRecordConfirm(false);
+
+		  // Điều chỉnh: Hàm thực hiện ghi điểm (recordRound)
+		  const executeRecord = () => {
+			setShowRecordConfirm(false); // Đóng modal xác nhận
+
+			const numLosers = players.length - 1;
+			const pointPerLoser = doubleNext ? 2 : 1;
+			const totalWin = numLosers * pointPerLoser;
+
+			const updatedPlayers = players.map(p => {
+			  if (p.name === winner) return { ...p, score: p.score + totalWin };
+			  return { ...p, score: p.score - pointPerLoser };
+			});
+
+			const changes = updatedPlayers.map((p, i) => ({
+			  name: p.name,
+			  delta: p.score - players[i].score
+			}));
+
+			const newHistory = [...history, { type: "record", winner, changes, isDouble: doubleNext }]; // Thêm type: "record"
+			setPlayers(updatedPlayers);
+			setHistory(newHistory);
+			setWinner("");
+			setDoubleNext(false);
+
+			const roundNum = newHistory.filter(h => h.type === "record").length;
+			const messageText = doubleNext 
+			  ? `✅ Đã ghi điểm ván ${roundNum} (DOUBLE) cho`
+			  : `✅ Đã ghi điểm ván ${roundNum} cho`;
+
+			// Điều chỉnh: Thông báo đã ghi điểm hiển thị ra giữa và lớn hơn, kèm tên người thắng
+			showTempMessage(messageText, "success", 3000, winner); 
+
+			if (totalRounds && remainingRounds !== null) {
+			  const newRemaining = remainingRounds - 1;
+			  setRemainingRounds(newRemaining);
+			  if (newRemaining <= 0) setGameEnded(true);
+			}
+		  };
+
+		  // Điều chỉnh: Hàm Hoàn tác (undoLast)
+		  const undoLast = () => {
+			if (gameEnded || history.length === 0) return;
+			
+			// 1. Tìm bản ghi điểm gần nhất để hoàn tác
+			const lastRecordIndex = history.map(h => h.type).lastIndexOf("record");
+			if (lastRecordIndex === -1) {
+				 return showTempMessage("⚠️ Không có ván nào để hoàn tác!", "warning");
+			}
+			
+			const last = history[lastRecordIndex];
+			const undoRoundNum = history.filter((_, idx) => idx <= lastRecordIndex && _.type === "record").length;
+			
+			// 2. Hoàn điểm: revert điểm bằng cách trừ đi thay đổi cũ
+			const reverted = players.map(p => {
+			  const change = last.changes.find(c => c.name === p.name)?.delta || 0;
+			  return { ...p, score: p.score - change };
+			});
+			
+			// 3. Bổ sung: Ghi lại sự kiện hoàn tác vào lịch sử (KHÔNG XÓA VÁN CŨ)
+			const newHistory = [...history, { 
+				type: "undo", 
+				targetRound: undoRoundNum, // Ván bị hoàn tác
+				undoChanges: last.changes, // Lưu lại thay đổi đã hoàn tác (ví dụ: +3, -1)
+				undoWinner: last.winner,
+				undoDouble: last.isDouble,
+				timestamp: new Date().toISOString()
+			}];
+			
+			setPlayers(reverted);
+			setHistory(newHistory);
+			setWinner("");
+			setDoubleNext(false);
+			showTempMessage(`↩️ Đã hoàn tác Ván ${undoRoundNum}.`, "info");
+		  };
+
+		  const adjustScore = (i, delta) => {
+			const updated = [...players];
+			let newScore = updated[i].score + delta;
+			if (newScore > 999) newScore = 999;
+			if (newScore < -999) newScore = -999;
+			updated[i].score = newScore;
+			setPlayers(updated);
+		  };
+
+		  const updateManualName = (i, v) => {
+			const updated = [...players];
+			updated[i].name = v;
+			setPlayers(updated);
+		  };
+
+		  const promptKick = (i) => {
+			if (manualMode) return;
+			setPlayerToKick({ ...players[i], index: i });
+			setShowKickConfirm(true);
+		  };
+
+		  const executeKick = () => {
+			if (!playerToKick) return;
+			const { name, index } = playerToKick;
+			
+			setKickedPlayers([...kickedPlayers, players[index]]);
+			setPlayers(players.filter((_, idx) => idx !== index));
+			if (winner === name) setWinner("");
+			
+			showTempMessage(`🚫 ${name} đã dừng chơi!`);
+			setShowKickConfirm(false);
+			setPlayerToKick(null);
+		  };
+		  
+		  const cancelKick = () => {
+			  setShowKickConfirm(false);
+			  setPlayerToKick(null);
+		  };
+		  
+		  const promptComeback = (player, index) => {
+			  if (isComebackDisabled) return;
+			  setPlayerToComeback({ player, index });
+			  setShowComebackConfirm(true);
+		  };
+		  
+		  const executeComeback = () => {
+			  if (!playerToComeback) return;
+			  const { player, index } = playerToComeback;
+
+			  setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== index));
+			  setPlayers([...players, player]);
+			  
+			  showTempMessage(`👋 ${player.name} đã quay trở lại!`, "info");
+			  setShowComebackConfirm(false);
+			  setPlayerToComeback(null);
+		  };
+		  
+		  const cancelComeback = () => {
+			  setShowComebackConfirm(false);
+			  setPlayerToComeback(null);
+		  };
+
+
+		  const total = [...players, ...kickedPlayers].reduce((s, p) => s + p.score, 0);
+		  const totalOk = Math.abs(total) < 1e-6;
+
+		  const toggleManualMode = () => {
+			if (manualMode) {
+				if (!totalOk) {
+					showTempMessage("⚠️ Tổng điểm không bằng 0, vui lòng kiểm tra lại!", "error");
+					return;
+				}
+			}
+			setManualMode(!manualMode);
+		  };
+
+		  const applySetRounds = () => {
+			const num = parseInt(roundInput);
+			if (isNaN(num) || num <= 0)
+			  return showTempMessage("⚠️ Nhập số hợp lệ!", "warning");
+			setTotalRounds(num);
+			setRemainingRounds(num);
+			setGameEnded(false);
+			// Thay đổi: Đóng Modal mới
+			setShowSetRoundsModal(false); 
+			setRoundInput("");
+			showTempMessage("✅ Đã đặt số ván còn lại!");
+		  };
+
+		  const currentRound = history.filter(h => h.type === "record").length + 1;
+		  const canSelectWinner = players.length >= 2 && !manualMode && !gameEnded;
+		  
+		  const isMaxPlayers = players.length >= 5;
+		  const isFeatureDisabled = manualMode || gameEnded;
+		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
+		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
+
+		  // Bổ sung: Hàm hiển thị Modal xác nhận xuất CSV
+		  const promptExport = () => {
+			if (history.length === 0 && players.length === 0) {
+				return showTempMessage("Chưa có dữ liệu để xuất!", "warning");
+			}
+			setShowExportConfirm(true);
+		  };
+		  const cancelExport = () => setShowExportConfirm(false);
+
+
+		  // START: Hàm export dữ liệu ra CSV (executeExport)
+		  const executeExport = () => {
+			setShowExportConfirm(false);
+
+			// 1. Dữ liệu Lịch sử
+			const allPlayerNames = [...new Set([...players.map(p => p.name), ...kickedPlayers.map(p => p.name)])];
+			
+			let csvContent = "";
+			
+			// Phần Điểm cuối cùng
+			csvContent += "Điểm Hiện Tại:\n";
+			csvContent += "Tên Người Chơi,Điểm Số,Trạng Thái\n";
+			players.forEach(p => {
+				csvContent += `"${p.name}",${p.score},Đang chơi\n`;
+			});
+			kickedPlayers.forEach(p => {
+				csvContent += `"${p.name}",${p.score},Đã dừng\n`;
+			});
+			csvContent += "\n\n";
+
+			// Phần Lịch sử Thi Đấu (chỉ lấy các bản ghi type: "record")
+			csvContent += "Lịch Sử Thi Đấu:\n";
+			const historyHeader = ["Ván", "Người Thắng", "Double", ...allPlayerNames];
+			csvContent += historyHeader.map(h => `"${h}"`).join(",") + "\n";
+			
+			let roundCounter = 0;
+			const allHistoryData = history.map((h, index) => {
+				if (h.type !== "record") return ""; // Chỉ xuất bản ghi điểm
+
+				roundCounter++;
+				const row = [`${roundCounter}`, `"${h.winner}"`, `${h.isDouble ? 'Có' : 'Không'}`];
+				
+				allPlayerNames.forEach(name => {
+					const change = h.changes.find(c => c.name === name);
+					row.push(change ? `${change.delta > 0 ? '+' : ''}${change.delta}` : '0');
+				});
+				return row.join(",");
+			}).filter(row => row !== "").join("\n"); // Lọc bỏ các dòng trống (undo)
+
+			csvContent += allHistoryData;
+			
+			const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+			const link = document.createElement("a");
+			const url = URL.createObjectURL(blob);
+			
+			link.setAttribute("href", url);
+			link.setAttribute("download", `Binh9Cay_Data_${new Date().toISOString().slice(0, 10)}.csv`);
+			link.style.visibility = 'hidden';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			
+			showTempMessage("✅ Đã xuất dữ liệu ra file CSV!", "info");
+		  };
+		  // END: Hàm export dữ liệu ra CSV
+
+
+		  return (
+			<div className="bg-white rounded-2xl shadow-lg p-5 w-full relative">
+			  
+			  {/* Điều chỉnh: Vị trí và kích thước thông báo */}
+			  {message && (
+				<div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
+				  <div className={`px-6 py-4 rounded-xl shadow-2xl text-xl font-bold transition-all duration-300 ${
+					  messageType === "warning" ? "bg-yellow-400 text-black"
+					  : messageType === "error" ? "bg-red-200 text-red-800"
+					  : messageType === "success" ? "bg-green-600 text-white"
+					  : "bg-blue-500 text-white"
+					}`}>
+					{message}{" "}
+					{/* Chỉ hiển thị messageWinner khi có và messageType là success (ghi điểm) */}
+					{messageWinner && messageType === "success" && <span className="text-yellow-200">{messageWinner}</span>} 
+				  </div>
+				</div>
+			  )}
+
+			  <h1 className="text-2xl font-bold text-center mb-4">🎯 Binh 9 cây</h1>
+
+			  {gameEnded && (
+				<div className="text-center text-red-600 font-bold mb-3 text-lg">
+				  🏁 Trò chơi đã kết thúc — Reset để bắt đầu lại
+				</div>
+			  )}
+
+			  {/* Thêm người chơi */}
+			  <div className="flex mb-3">
+				<input
+				  className="flex-grow border rounded-l-lg px-3 py-2"
+				  placeholder={isMaxPlayers ? "Đã đủ 5 người chơi" : "Tên người chơi"}
+				  value={newName}
+				  onChange={e => setNewName(e.target.value)}
+				  onKeyDown={e => e.key === "Enter" && addPlayer()}
+				  disabled={isAddPlayerDisabled}
+				/>
+				<button
+				  className={`px-4 py-2 rounded-r-lg text-white ${
+					isAddPlayerDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
+				  }`}
+				  onClick={addPlayer}
+				  disabled={isAddPlayerDisabled}
+				>Thêm</button>
+			  </div>
+
+			  {/* Danh sách người chơi */}
+			  {players.length === 0 ? (
+				<p className="text-gray-500 text-center">🧍‍♂️ Vui lòng thêm tối thiểu 2 người để bắt đầu</p>
+			  ) : (
+				<>
+				  <ul className="space-y-2">
+					{players.map((p, i) => (
+					  <li
+						key={i}
+						className={`flex justify-between items-center border rounded-lg px-3 py-2 transition ${
+						  winner === p.name ? "winner-glow font-semibold" : "hover:bg-gray-100"
+						} ${canSelectWinner ? "cursor-pointer" : "cursor-default"}`}
+						onClick={() => canSelectWinner && setWinner(p.name)}
+					  >
+						{manualMode ? (
+						  <div className="flex items-center justify-between w-full">
+							<input
+							  className="border rounded px-2 flex-grow mr-2"
+							  value={p.name}
+							  onChange={e => updateManualName(i, e.target.value)}
+							  disabled={gameEnded}
+							/>
+							<div className="flex items-center gap-1">
+							  <button 
+								className="bg-gray-300 px-2 rounded text-lg font-bold" 
+								onClick={() => adjustScore(i, -1)}
+								disabled={gameEnded}
+							  >-</button>
+							  <span className="w-10 text-center">{p.score}</span>
+							  <button 
+								className="bg-gray-300 px-2 rounded text-lg font-bold" 
+								onClick={() => adjustScore(i, 1)}
+								disabled={gameEnded}
+							  >+</button>
+							</div>
+						  </div>
+						) : (
+						  <>
+							<span>{p.name}</span>
+							<div className="flex items-center gap-2">
+							  <span>{p.score}</span>
+							  <button
+								className={`text-white px-2 rounded text-sm ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-red-500"}`}
+								onClick={(e) => { e.stopPropagation(); promptKick(i); }}
+								disabled={isFeatureDisabled}
+							  >
+								🚫 Kick
+							  </button>
+							</div>
+						  </>
+						)}
+					  </li>
+					))}
+				  </ul>
+
+				  {players.length < 2 && (
+					<p className="text-gray-500 text-center mt-2">
+					  🧍‍♂️ Vui lòng thêm tối thiểu 2 người để bắt đầu
+					</p>
+				  )}
+
+				  <div className="mt-3 text-center font-semibold">
+					<div className={`${totalOk ? "text-green-600" : "text-red-600"}`}>
+					  {totalOk ? "✅ Tổng điểm hợp lệ (0)" : `⚠️ Tổng điểm không bằng 0 (${total})`}
+					</div>
+					<div className="text-gray-700 mt-1">
+					  🧮 Ván thứ: {currentRound}
+					  {remainingRounds !== null && totalRounds && (
+						<span> | ⏳ Còn {remainingRounds} / {totalRounds} ván</span>
+					  )}
+					</div>
+				  </div>
+				</>
+			  )}
+
+			  {/* Người đã dừng chơi */}
+			  {kickedPlayers.length > 0 && (
+				<div className="mt-4">
+				  <h3 className="text-md font-semibold text-gray-700 mb-1">🎯 Người đã dừng chơi:</h3>
+				  <ul className="space-y-1">
+					{kickedPlayers.map((p, i) => (
+					  <li key={i} className="flex justify-between items-center bg-gray-100 border rounded px-3 py-1 text-sm">
+						<span>{p.name}</span>
+						<div className="flex items-center gap-2">
+							<span className="font-semibold">{p.score}</span>
+							<button
+								className={`text-white px-2 py-0.5 rounded text-xs ${isComebackDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-500"}`}
+								onClick={() => promptComeback(p, i)}
+								disabled={isComebackDisabled}
+								title={isMaxPlayers ? "Đã đủ 5 người chơi" : ""}
+							>
+								Comeback
+							</button>
+						</div>
+					  </li>
+					))}
+				  </ul>
+				</div>
+			  )}
+
+			  {/* Các nút chức năng */}
+			  {players.length >= 2 && !gameEnded && (
+				<>
+				  <div className="flex gap-2 mt-3">
+					<button 
+						className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-500"} ${doubleNext ? "pulse-green" : ""}`} 
+						onClick={promptRecord} 
+						disabled={isFeatureDisabled}
+					>
+						{doubleNext ? "✅ Ghi điểm Double" : "✅ Ghi điểm"}
+					</button>
+					<button 
+						className={`flex-1 py-2 rounded text-white transition-all ${doubleNext ? "bg-red-500 pulse" : "bg-gray-400"} ${isFeatureDisabled ? "opacity-50 cursor-not-allowed" : ""}`} 
+						onClick={() => setDoubleNext(!doubleNext)}
+						disabled={isFeatureDisabled}
+					>
+					  {doubleNext ? "💥 Double ON" : "💥 Double"}
+					</button>
+					<button 
+						className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-gray-500"}`} 
+						onClick={undoLast}
+						disabled={isFeatureDisabled}
+					>↩️ Hoàn tác</button>
+				  </div>
+
+				  <div className="mt-3">
+					<button 
+						className={`w-full py-2 text-white rounded ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"}`} 
+						onClick={() => setShowSetRoundsModal(true)} // Thay đổi: Mở Modal mới
+						disabled={isFeatureDisabled}
+					>
+					  🎯 Set số ván còn lại
+					</button>
+					{/* Đã xóa khối hiển thị input inline cũ */}
+				  </div>
+
+				  <button
+					className={`mt-3 w-full py-2 rounded font-semibold ${
+						manualMode && totalOk ? "bg-blue-500 text-white" : 
+						manualMode && !totalOk ? "bg-gray-600 text-white cursor-not-allowed" : 
+						"bg-blue-500 text-white"
+					}`}
+					onClick={toggleManualMode}
+					disabled={gameEnded || (manualMode && !totalOk)} 
+				  >
+					{manualMode ? (totalOk ? "💾 Hoàn thành" : "⚠️ Tổng điểm ≠ 0") : "✏️ Nhập điểm thủ công"}
+				  </button>
+				</>
+			  )}
+			  
+			  {/* Nút Export và Reset */}
+			  <div className="flex justify-between mt-4">
+				 <button 
+					className={`bg-gray-500 text-white px-3 py-2 rounded ${history.length === 0 && players.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`} 
+					onClick={promptExport} 
+					disabled={history.length === 0 && players.length === 0}
+				>
+					⬇️ Export (CSV)
+				</button>
+				<button className="bg-red-500 text-white px-3 py-2 rounded" onClick={confirmReset}>Reset</button>
+			  </div>
+
+			  {/* Modal Xác nhận Reset */}
+			  {showResetConfirm && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
+					<p className="font-semibold mb-4">Bạn có chắc muốn reset toàn bộ dữ liệu?</p>
+					<div className="flex justify-center gap-4">
+					  <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={resetGame}>Xác nhận</button>
+					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelReset}>Hủy</button>
+					</div>
+				  </div>
+				</div>
+			  )}
+			  
+			  {/* Modal Xác nhận Kick */}
+			  {showKickConfirm && playerToKick && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
+					<p className="font-semibold mb-4">Bạn có chắc muốn loại <span className="text-red-600 font-bold">{playerToKick.name}</span> khỏi trò chơi?</p>
+					<div className="flex justify-center gap-4">
+					  <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeKick}>Xác nhận</button>
+					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelKick}>Hủy</button>
+					</div>
+				  </div>
+				</div>
+			  )}
+
+			  {/* Modal Xác nhận Comeback */}
+			  {showComebackConfirm && playerToComeback && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
+					<p className="font-semibold mb-4">Bạn có chắc muốn đưa <span className="text-green-600 font-bold">{playerToComeback.player.name}</span> quay lại trò chơi?</p>
+					<div className="flex justify-center gap-4">
+					  <button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeComeback}>Xác nhận</button>
+					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelComeback}>Hủy</button>
+					</div>
+				  </div>
+				</div>
+			  )}
+			  
+			  {/* Modal Xác nhận Ghi điểm */}
+			  {showRecordConfirm && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
+					<p className="font-semibold mb-4">
+					  Ghi điểm ván <span className="text-blue-600 font-bold">{currentRound}</span> 
+					  {doubleNext 
+						? <span className="text-red-600 font-bold"> (Double) </span> 
+						: " "}
+					  cho <span className="text-blue-600 font-bold">{winner}</span>?
+					</p>
+					<div className="flex justify-center gap-4">
+					  <button className={`text-white px-4 py-2 rounded ${doubleNext ? "bg-red-500" : "bg-green-500"}`} onClick={executeRecord}>Xác nhận</button>
+					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelRecord}>Hủy</button>
+					</div>
+				  </div>
+				</div>
+			  )}
+
+			  {/* Bổ sung: Modal Set Rounds */}
+			  {showSetRoundsModal && (
+				  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+					  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
+						  <p className="font-semibold mb-4">🎯 Đặt số ván còn lại:</p>
+						  <input
+							  type="number"
+							  className="w-full border rounded px-3 py-2 mb-4 text-lg text-center"
+							  placeholder="Nhập số ván..."
+							  value={roundInput}
+							  onChange={e => setRoundInput(e.target.value)}
+							  onKeyDown={e => e.key === "Enter" && applySetRounds()}
+							  autoFocus
+							  disabled={isFeatureDisabled}
+						  />
+						  <div className="flex justify-center gap-4">
+							  <button 
+								  className="bg-green-500 text-white px-4 py-2 rounded" 
+								  onClick={applySetRounds}
+								  disabled={isFeatureDisabled}
+							  >
+								  Lưu ({roundInput || 0} ván)
+							  </button>
+							  <button 
+								  className="bg-gray-400 text-white px-4 py-2 rounded" 
+								  onClick={() => {
+									  setShowSetRoundsModal(false);
+									  setRoundInput("");
+								  }}
+							  >
+								  Hủy
+							  </button>
+						  </div>
+					  </div>
+				  </div>
+			  )}
+			  
+			  {/* Bổ sung: Modal Xác nhận Export CSV */}
+			  {showExportConfirm && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+				  <div className="bg-white p-5 rounded-xl shadow-lg text-center">
+					<p className="font-semibold mb-4">Bạn có chắc muốn xuất dữ liệu lịch sử và điểm hiện tại ra file CSV?</p>
+					<div className="flex justify-center gap-4">
+					  <button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeExport}>Xác nhận Export</button>
+					  <button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelExport}>Hủy</button>
+					</div>
+				  </div>
+				</div>
+			  )}
+
+			  {/* Lịch sử */}
+			  <h2 className="text-lg font-semibold mt-4 mb-2">📜 Lịch sử</h2>
+			  {history.length === 0 ? (
+				<p className="text-gray-500">Chưa có ván nào.</p>
+			  ) : (
+				<ul className="space-y-1 max-h-60 overflow-y-auto">
+				  {[...history].reverse().map((h, i) => {
+					const globalIndex = history.length - 1 - i;
+
+					if (h.type === "undo") {
+						// Hiển thị sự kiện hoàn tác
+						return (
+							<li key={globalIndex} className="border border-yellow-500 rounded p-2 text-sm bg-yellow-100">
+								<strong>↩️ Đã hoàn tác Ván {h.targetRound}</strong> (Ván thắng của {h.undoWinner})
+								<div className="text-gray-600 mt-1 pl-2">
+									<strong>Hoàn điểm:</strong>
+									{h.undoChanges.map(c => (
+										// Tách mỗi người chơi ra 1 dòng
+										<div key={c.name} className="mt-0.5">
+											{c.name}: <span className="font-semibold text-blue-700">
+												{/* Hiển thị số điểm được hoàn lại: là giá trị ngược lại của c.delta */}
+												{(-c.delta) > 0 ? "+" : ""}{-c.delta}
+											</span>
+										</div>
+									))}
+								</div>
+							</li>
+						);
+					}
+					
+					// Ván ghi điểm thông thường
+					const roundNum = history.filter((_, idx) => idx <= globalIndex && _.type === "record").length;
+					return (
+					  <li key={globalIndex} className={`border rounded p-2 text-sm ${h.isDouble ? "bg-red-50 border-red-400" : "bg-gray-50"}`}>
+						<strong className={h.isDouble ? "text-red-600" : ""}>
+						  Ván {roundNum}{h.isDouble ? " (DOUBLE)" : ""}
+						</strong>: 🏆 <span className={h.isDouble ? "text-red-600 font-bold" : "text-black font-semibold"}>{h.winner}</span>
+						<div className="text-gray-600 mt-1 pl-2">
+						  {h.changes.map(c => (
+							// Tách mỗi người chơi ra 1 dòng
+							<div key={c.name} className="mt-0.5">{c.name}: {c.delta > 0 ? "+" : ""}{c.delta}</div>
+						  ))}
+						</div>
+					  </li>
+					);
+				  })}
+				</ul>
+			  )}
+			</div>
+		  );
+		}
+
+		const root = ReactDOM.createRoot(document.getElementById("root"));
+		root.render(<App />);
+	  </script>
+	  
+</body>
+</html>
