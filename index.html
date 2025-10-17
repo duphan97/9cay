@@ -423,22 +423,22 @@
 			<div className="bg-white rounded-2xl shadow-lg p-5 w-full relative">
 			  
 			  {/* Điều chỉnh: Vị trí và kích thước thông báo */}
-			  {message && (
-				<div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
-				  <div className={`px-6 py-4 rounded-xl shadow-2xl text-xl font-bold transition-all duration-300 ${
+				{message && (
+				  <div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
+					<div className={`px-6 py-4 rounded-xl shadow-2xl text-xl font-bold transition-all duration-300 text-center ${ // THÊM text-center TẠI ĐÂY
 					  messageType === "warning" ? "bg-yellow-400 text-black"
 					  : messageType === "error" ? "bg-red-200 text-red-800"
 					  : messageType === "success" ? "bg-green-600 text-white"
 					  : "bg-blue-500 text-white"
 					}`}>
-					{message}{" "}
-					{/* Chỉ hiển thị messageWinner khi có và messageType là success (ghi điểm) */}
-					{messageWinner && messageType === "success" && <span className="text-yellow-200">{messageWinner}</span>} 
+					  {message}{" "}
+					  {/* Chỉ hiển thị messageWinner khi có và messageType là success (ghi điểm) */}
+					  {messageWinner && messageType === "success" && <span className="text-red-600 text-3xl font-bold">{messageWinner}</span>} 
+					</div>
 				  </div>
-				</div>
-			  )}
+				)}
 
-			  <h1 className="text-2xl font-bold text-center mb-4">90% người chơi dừng lại trước khi thắng lớn!💰</h1>
+			  <h1 className="text-2xl font-bold text-center mb-4 text-green-600">90% người chơi dừng lại trước khi thắng lớn!💰💰</h1>
 
 			  {gameEnded && (
 				<div className="text-center text-red-600 font-bold mb-3 text-lg">
