@@ -207,7 +207,7 @@
             // 2. KIỂM TRA KHÔNG ĐƯỢC HOÀN TÁC 2 LẦN LIÊN TIẾP
             const lastAction = history[history.length - 1].type;
             if (lastAction === "undo") {
-                return showTempMessage("⚠️ Vừa hoàn tác rồi, không thể hoàn tác liên tiếp!", "error");
+                return showTempMessage("⚠️ Không thể hoàn tác liên tiếp!", "error");
             }
 			
 			const lastRecord = history[lastRecordIndex];
