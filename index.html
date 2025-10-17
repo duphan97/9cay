@@ -188,7 +188,7 @@
 			setDoubleNext(false);
 
 			const messageText = doubleNext 
-			  ? `✅ Đã ghi điểm ván ${currentRound} (DOUBLE) cho`
+			  ? `✅ Đã ghi điểm ván ${currentRound} (Double) cho`
 			  : `✅ Đã ghi điểm ván ${currentRound} cho`;
 			
 			showTempMessage(messageText, "success", 3000, winner); 
@@ -689,7 +689,7 @@
 						  </p>
 						  <div className='text-sm text-gray-700 mb-4 border p-2 rounded'>
 							Ván thắng của: <span className='font-bold'>{modal.data.lastRecord.winner}</span> 
-							{modal.data.lastRecord.isDouble && <span className='text-red-500 font-bold'> (DOUBLE)</span>}
+							{modal.data.lastRecord.isDouble && <span className='text-red-500 font-bold'> (Double)</span>}
 						  </div>
 						  <div className="flex justify-center gap-4">
 							<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeUndo}>Xác nhận Hoàn tác</button>
@@ -773,7 +773,7 @@
 					return (
 					  <li key={globalIndex} className={`border rounded p-2 text-sm ${h.isDouble ? "bg-red-50 border-red-400" : "bg-gray-50"}`}>
 						<strong className={h.isDouble ? "text-red-600" : ""}>
-						  Ván {roundNum}{h.isDouble ? " (DOUBLE)" : ""}
+						  Ván {roundNum}{h.isDouble ? " (Double)" : ""}
 						</strong>: 🏆 <span className={h.isDouble ? "text-red-600 font-bold" : "text-green-600 font-bold"}>{h.winner}</span>
 						<div className="text-gray-600 mt-1 pl-2">
 						  {h.changes.map(c => (
@@ -810,4 +810,5 @@
 	  
 </body>
 </html>
+
 
