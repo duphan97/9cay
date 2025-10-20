@@ -58,7 +58,7 @@
         
         // DANH SÁCH TÊN CỐ ĐỊNH 
         const FIXED_PLAYER_NAMES = [
-            "Hình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
+            "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", // ĐÃ ĐỔI TÊN HÌNH ĐẶNG -> BÌNH ĐẶNG
             "Dự Phan", "Định Ngô", "Đông Lê", 
             "Khánh Đỗ", "Minh Anh", "Nhân Trần", 
             "Quý Huỳnh", "Tuấn Nguyễn"
@@ -142,7 +142,7 @@
             } else if (remainingRounds === 1) {
                  fileToPlay = '1left.mp3';
             } else if (remainingRounds <= 0) {
-                 fileToPlay = 'gameover.wav';
+                 fileToPlay = 'gameover.mp3'; // ĐÃ ĐỔI TỪ .wav SANG .mp3
             }
             
             if (fileToPlay) {
@@ -347,6 +347,39 @@
 			setModal({ type: null, data: null });
             setSelectedPlayerName(""); 
 		  };
+          
+          // --- BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
+        const settleGame = () => {
+            if (gameEnded) {
+                showTempMessage("⚠️ Trò chơi đã kết thúc rồi!", "warning");
+                return;
+            }
+            
+            // Tính số ván đã chơi kể từ lần Set gần nhất
+            const roundsPlayedSinceLastSet = recordedRounds - roundsStartCount;
+
+            // 1. Force gameEnded to true by setting the goal to the rounds already played
+            // This forces effectiveRemainingRounds = 0
+            setTotalRounds(roundsPlayedSinceLastSet); 
+            
+            // 2. Play game over audio (passing 0 to playRoundEndAudio)
+            playRoundEndAudio(0);
+            
+            // 3. The useEffect [gameEnded, isSessionSaved] will handle saveSessionAutomatically
+            
+            showTempMessage("💰 Tính tiền phiên chơi! Dữ liệu đang được lưu...", "info", 4000); 
+            setModal({ type: null, data: null });
+        };
+
+        const confirmSettle = () => {
+            if (gameEnded) return;
+            // Cần ít nhất 2 người chơi hoặc có lịch sử để tính tiền/lưu
+            if (players.length < 2 && history.length === 0) {
+                 return showTempMessage("⚠️ Chưa có người chơi hoặc ván nào để tính tiền!", "warning");
+            }
+            setModal({ type: 'settle', data: null });
+        }
+        // --- END BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
 
 		  // Hàm hiển thị Modal xác nhận ghi điểm
 		  const promptRecord = () => {
@@ -858,15 +891,24 @@
 				</>
 			  )}
 			  
-			  {/* Nút Export và Reset */}
-			  <div className="flex justify-end gap-4 mt-4">
+			  {/* Nút Export, Tính tiền và Reset */}
+			  <div className="flex justify-between gap-2 mt-4">
 				 <button 
 					className={`bg-gray-500 text-white px-3 py-2 rounded ${history.length === 0 && players.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`} 
 					onClick={promptExport} 
 					disabled={history.length === 0 && players.length === 0}
 				>
-					⬇️ Export Điểm (CSV)
+					⬇️ Export (CSV)
 				</button>
+                {/* NÚT TÍNH TIỀN MỚI */}
+				<button 
+                   className={`bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
+                   onClick={confirmSettle}
+                   disabled={gameEnded}
+                >
+                   💰 Tính tiền
+                </button>
+                {/* END NÚT TÍNH TIỀN MỚI */}
 				<button className="bg-red-500 text-white px-3 py-2 rounded" onClick={confirmReset}>Reset</button>
 			  </div>
 
@@ -886,6 +928,18 @@
 						</>
 					)}
 					
+                    {/* Modal Settle */}
+					{modal.type === 'settle' && (
+						<>
+						  <p className="font-semibold mb-4 text-orange-600">Bạn muốn kết thúc và Tính tiền ngay?</p>
+                          <p className='text-sm text-gray-600 mb-4'>Hệ thống sẽ lưu phiên chơi này trước khi kết thúc.</p>
+						  <div className="flex justify-center gap-4">
+							<button className="bg-orange-500 text-white px-4 py-2 rounded" onClick={settleGame}>Xác nhận Tính tiền</button>
+							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+						  </div>
+						</>
+					)}
+
 					{/* Modal Kick */}
 					{modal.type === 'kick' && modal.data && (
 						<>
