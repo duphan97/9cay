@@ -58,7 +58,7 @@
         
         // DANH SÁCH TÊN CỐ ĐỊNH MỚI
         const FIXED_PLAYER_NAMES = [
-            "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
+            "Hình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
             "Dự Phan", "Định Ngô", "Đông Lê", 
             "Khánh Đỗ", "Minh Anh", "Nhân Trần", 
             "Quý Huỳnh", "Tuấn Nguyễn"
@@ -93,7 +93,7 @@
           // THAY ĐỔI: State quản lý nhạc nền Double
           const [doubleMusic, setDoubleMusic] = useState(null); 
 		  
-        // --- LOGIC AUDIO MỚI (ĐÃ SỬA LỖI CHỒNG CHÉO VÀ THÊM NHẠC DOUBLE) ---
+        // --- LOGIC AUDIO ---
         
         // Hàm chuyển tên có dấu/khoảng trắng thành tên file không dấu (dùng để truy cập file MP3)
         const slugifyPlayerName = (name) => {
@@ -146,7 +146,7 @@
             } else if (remainingRounds === 1) {
                  fileToPlay = '1left.mp3';
             } else if (remainingRounds <= 0) {
-                 fileToPlay = 'gameover.mp3';
+                 fileToPlay = 'gameover.wav';
             }
             
             if (fileToPlay) {
@@ -182,7 +182,7 @@
             };
         }, [doubleNext, doubleMusic]);
         
-        // --- KẾT THÚC LOGIC AUDIO MỚI ---
+        // --- KẾT THÚC LOGIC AUDIO ---
 
 
 		  // Tính toán trạng thái vòng đấu
@@ -202,6 +202,75 @@
 			totalRounds !== null && effectiveRemainingRounds !== null && effectiveRemainingRounds <= 0,
 			[totalRounds, effectiveRemainingRounds]
 		  );
+          
+          // --- CẬP NHẬT: LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
+          
+          // Hàm tạo đối tượng dữ liệu phiên chơi
+          const createSessionData = () => {
+              const recordHistory = history.filter(h => h.type === "record");
+
+              const sessionData = {
+                  sessionId: `Session-${new Date().toISOString()}`,
+                  timestamp: new Date().toISOString(),
+                  totalRoundsSet: totalRounds,
+                  roundsPlayed: recordHistory.length,
+                  gameStatus: "COMPLETED", 
+                  finalPlayers: players, 
+                  kickedPlayers: kickedPlayers,
+                  detailedHistory: recordHistory.map((h, index) => ({
+                      round: index + 1,
+                      winner: h.winner,
+                      isDouble: h.isDouble,
+                      changes: h.changes
+                  }))
+              };
+              return sessionData;
+          }
+
+          // CẬP NHẬT: Hàm gọi Netlify Function để lưu tự động (SILENT)
+          const saveSessionAutomatically = async () => {
+              if (!gameEnded) {
+                  return; 
+              }
+              
+              const sessionData = createSessionData();
+
+              console.log("Saving game session automatically in background...");
+
+              try {
+                  const response = await fetch('/.netlify/functions/save-session', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(sessionData),
+                  });
+
+                  if (response.ok) {
+                      console.log("✅ Session saved successfully to GitHub via Netlify Function.");
+                  } else {
+                      const result = await response.json();
+                      // Log lỗi ra console để tự kiểm tra
+                      console.error("❌ Failed to save session. Status:", response.status, "Details:", result);
+                  }
+              } catch (error) {
+                  // Log lỗi mạng/API ra console
+                  console.error("❌ Network/API error during session save:", error);
+              }
+          };
+
+          // CẬP NHẬT: Trigger tự động lưu (background)
+          useEffect(() => {
+              if (gameEnded) {
+                  // Gọi hàm lưu tự động sau 4 giây để tránh chồng chéo với audio "gameover"
+                  setTimeout(() => {
+                      saveSessionAutomatically();
+                  }, 4000); 
+              }
+          }, [gameEnded]);
+          
+          // --- KẾT THÚC CẬP NHẬT LOGIC LƯU ---
+
 
 		  // Lưu trữ dữ liệu vào localStorage
 		  useEffect(() => {
@@ -778,14 +847,14 @@
 				</>
 			  )}
 			  
-			  {/* Nút Export và Reset */}
-			  <div className="flex justify-between mt-4">
+			  {/* Nút Export và Reset (Đã loại bỏ nút Lưu Tự Động) */}
+			  <div className="flex justify-end gap-4 mt-4">
 				 <button 
 					className={`bg-gray-500 text-white px-3 py-2 rounded ${history.length === 0 && players.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`} 
 					onClick={promptExport} 
 					disabled={history.length === 0 && players.length === 0}
 				>
-					⬇️ Export (CSV)
+					⬇️ Export Điểm (CSV)
 				</button>
 				<button className="bg-red-500 text-white px-3 py-2 rounded" onClick={confirmReset}>Reset</button>
 			  </div>
