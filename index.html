@@ -56,9 +56,9 @@
 	<script type="text/babel">
 		const { useState, useEffect, useMemo } = React;
         
-        // DANH SÁCH TÊN CỐ ĐỊNH (ĐÃ THÊM LẠI)
+        // DANH SÁCH TÊN CỐ ĐỊNH 
         const FIXED_PLAYER_NAMES = [
-            "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
+            "Hình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
             "Dự Phan", "Định Ngô", "Đông Lê", 
             "Khánh Đỗ", "Minh Anh", "Nhân Trần", 
             "Quý Huỳnh", "Tuấn Nguyễn"
@@ -76,6 +76,9 @@
 		  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
 		  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem("roundsStartCount")) || 0);
 
+		  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
+		  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem("isSessionSaved")) || false);
+
 		  // Trạng thái phiên hiện tại
           const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
 		  const [winner, setWinner] = useState("");
@@ -90,10 +93,10 @@
 		  // Tối ưu: Gộp trạng thái Modal và dữ liệu liên quan
 		  const [modal, setModal] = useState({ type: null, data: null }); 
           
-          // State quản lý nhạc nền Double (ĐÃ THÊM LẠI)
+          // State quản lý nhạc nền Double 
           const [doubleMusic, setDoubleMusic] = useState(null); 
 		  
-        // --- LOGIC AUDIO (ĐÃ THÊM LẠI) ---
+        // --- LOGIC AUDIO ---
         
         const slugifyPlayerName = (name) => {
             return name
@@ -194,7 +197,7 @@
           
           // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
           
-          // Hàm tạo đối tượng dữ liệu phiên chơi (ĐÃ ĐƠN GIẢN HÓA THEO YÊU CẦU MỚI)
+          // Hàm tạo đối tượng dữ liệu phiên chơi 
           const createSessionData = () => {
               // Lấy tất cả người chơi, sắp xếp người đang chơi lên trước
               const allFinalPlayers = [
@@ -210,7 +213,6 @@
                   }))
               ];
               
-              // Chỉ lưu kết quả cuối, KHÔNG lưu detailedHistory nữa.
               const sessionData = {
                   sessionId: `Session-${new Date().toISOString()}`,
                   timestamp: new Date().toISOString(), // LƯU THỜI GIAN
@@ -224,8 +226,9 @@
 
           // Hàm gọi Netlify Function để lưu tự động (SILENT)
           const saveSessionAutomatically = async () => {
-              if (!gameEnded) {
-                  return; 
+              if (isSessionSaved) {
+                  console.log("Session already saved, skipping automatic save.");
+                  return;
               }
               
               const sessionData = createSessionData();
@@ -243,6 +246,7 @@
 
                   if (response.ok) {
                       console.log("✅ Session saved successfully to GitHub via Netlify Function.");
+                      setIsSessionSaved(true); // Đánh dấu đã lưu thành công
                   } else {
                       const result = await response.json();
                       console.error("❌ Failed to save session. Status:", response.status, "Details:", result);
@@ -254,13 +258,16 @@
 
           // Trigger tự động lưu (background)
           useEffect(() => {
-              // Trigger khi game kết thúc HOẶC khi user nhấn reset sau khi chơi 1 ván
-              if (gameEnded) {
+              // CHỈ TRIGGER khi game ENDED và CHƯA được lưu.
+              if (gameEnded && !isSessionSaved) { 
                   setTimeout(() => {
                       saveSessionAutomatically();
                   }, 4000); 
               }
-          }, [gameEnded]);
+              
+              // Loại bỏ việc lưu khi reset giữa chừng
+              
+          }, [gameEnded, isSessionSaved]);
           
           // --- KẾT THÚC LOGIC LƯU ---
 
@@ -272,7 +279,8 @@
 			localStorage.setItem("history", JSON.stringify(history));
 			localStorage.setItem("totalRounds", JSON.stringify(totalRounds));
 			localStorage.setItem("roundsStartCount", JSON.stringify(roundsStartCount)); 
-		  }, [players, kickedPlayers, history, totalRounds, roundsStartCount]);
+			localStorage.setItem("isSessionSaved", JSON.stringify(isSessionSaved)); // LƯU TRẠNG THÁI MỚI
+		  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved]);
 
 		  // Điều chỉnh hàm showTempMessage
 		  const showTempMessage = (text, type = "info", duration = 2500, winnerName = "") => {
@@ -282,7 +290,7 @@
 			setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
 		  };
 
-          // Hàm thêm người chơi (ĐÃ CẬP NHẬT DÙNG selectedPlayerName)
+          // Hàm thêm người chơi 
 		  const addPlayer = () => {
 			const totalPlaying = players.length;
 			if (totalPlaying >= 5) return; 
@@ -317,10 +325,8 @@
 		  };
 
 		  const confirmReset = () => {
-            if (history.length > 0) {
-                 // Nếu có lịch sử, tạo session data với trạng thái 'RESET_MID_GAME' trước khi reset
-                 saveSessionAutomatically();
-            }
+            // LƯU Ý: ĐÃ LOẠI BỎ LOGIC LƯU LỊCH SỬ KHI RESET GIỮA CHỪNG.
+            // Chỉ lưu khi Game End (trigger bởi useEffect), không lưu khi người dùng chủ động reset.
             setModal({ type: 'reset', data: null });
           }
 		  const cancelModal = () => setModal({ type: null, data: null });
@@ -336,6 +342,7 @@
 			setDoubleNext(false); setManualMode(false);
 			setTotalRounds(null); 
 			setRoundsStartCount(0);
+			setIsSessionSaved(false); // ĐẶT LẠI TRẠNG THÁI MỚI NÀY
 			localStorage.clear();
 			setModal({ type: null, data: null });
             setSelectedPlayerName(""); 
@@ -465,6 +472,11 @@
                 setDoubleMusic(null);
             }
 			
+			// Nếu hoàn tác xảy ra khi gameEnded=true, ta cần đánh dấu lại là chưa lưu.
+			if (gameEnded) {
+				setIsSessionSaved(false);
+			}
+
 			showTempMessage(`↩️ Đã hoàn tác Ván ${undoRoundNum}.`, "info");
 		  };
 
@@ -626,7 +638,7 @@
 		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
 		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
           
-          // Lọc ra các tên chưa có trong danh sách đang chơi (ĐÃ THÊM LẠI)
+          // Lọc ra các tên chưa có trong danh sách đang chơi
           const availablePlayerNames = useMemo(() => {
               const playingNames = players.map(p => p.name);
               return FIXED_PLAYER_NAMES.filter(name => !playingNames.includes(name));
@@ -659,7 +671,7 @@
 				</div>
 			  )}
 
-			  {/* THAY ĐỔI: Thêm người chơi bằng Dropdown (ĐÃ THÊM LẠI) */}
+			  {/* THÊM người chơi bằng Dropdown */}
 			  <div className="flex mb-3">
 				<select
                   className="flex-grow border rounded-l-lg px-3 py-2 bg-white"
@@ -667,7 +679,7 @@
                   onChange={e => setSelectedPlayerName(e.target.value)}
                   disabled={isAddPlayerDisabled}
                 >
-                    {/* THAY ĐỔI: Option mặc định/Full slot */}
+                    {/* Option mặc định/Full slot */}
                     {isMaxPlayers ? (
                         <option value="" disabled>Full slot</option>
                     ) : (
@@ -693,7 +705,7 @@
 				  disabled={isAddPlayerDisabled || !selectedPlayerName}
 				>Thêm</button>
 			  </div>
-              {/* END THAY ĐỔI */}
+              {/* END THÊM */}
 
 			  {/* Danh sách người chơi */}
 			  {players.length === 0 ? (
