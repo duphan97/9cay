@@ -163,5 +163,30 @@
       }
     ],
     "serverTimestamp": "2025-10-20T18:26:24.622Z"
+  },
+  {
+    "sessionId": "Session-2025-10-20T18:28:24.566Z",
+    "timestamp": "2025-10-20T18:28:24.566Z",
+    "totalRoundsSet": 1,
+    "roundsPlayed": 1,
+    "gameStatus": "COMPLETED",
+    "finalResults": [
+      {
+        "name": "Dự Phan",
+        "score": 2,
+        "status": "Playing"
+      },
+      {
+        "name": "Dũng Hoàng",
+        "score": -1,
+        "status": "Playing"
+      },
+      {
+        "name": "Đông Lê",
+        "score": -1,
+        "status": "Playing"
+      }
+    ],
+    "serverTimestamp": "2025-10-20T18:27:30.707Z"
   }
 ]
