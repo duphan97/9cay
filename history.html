@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📜 Lịch Sử Phiên Chơi Tổng Hợp</title>
+    <title>📜 Lịch Sử Tổng Hợp & BXH</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-4">
-    <div id="root" class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6"></div>
+    <div id="root" class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6"></div>
 
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
 
         // --- CẤU HÌNH GITHUB (BẮT BUỘC PHẢI THAY THẾ) ---
         const GITHUB_USERNAME = "duphan97"; 
@@ -27,6 +27,31 @@
             const [sessions, setSessions] = useState(null);
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
+
+            // Hàm tính tổng điểm toàn thời gian (All-Time Score)
+            const allTimeScores = useMemo(() => {
+                if (!sessions || sessions.length === 0) return [];
+                
+                const scoresMap = {};
+
+                // 1. Duyệt qua TẤT CẢ các session
+                sessions.forEach(session => {
+                    // 2. Duyệt qua TẤT CẢ finalResults (người đang chơi và đã dừng)
+                    session.finalResults.forEach(player => {
+                        const { name, score } = player;
+                        // Cộng điểm cuối cùng của session đó vào tổng điểm của người chơi
+                        scoresMap[name] = (scoresMap[name] || 0) + score;
+                    });
+                });
+
+                // 3. Chuyển đổi thành mảng và sắp xếp (Điểm cao nhất lên đầu)
+                const scoreboard = Object.keys(scoresMap).map(name => ({
+                    name,
+                    totalScore: scoresMap[name]
+                })).sort((a, b) => b.totalScore - a.totalScore); // Sắp xếp giảm dần
+
+                return scoreboard;
+            }, [sessions]);
 
             // Helper cho hiển thị thời gian
             const formatSessionDate = (isoString) => {
@@ -45,16 +70,15 @@
             };
             
             // Hàm tính người có điểm số cao nhất (winner) của phiên
-            const getSessionWinner = (players, kickedPlayers) => {
-                const allPlayers = [...players, ...kickedPlayers];
-                if (allPlayers.length === 0) return { name: "N/A", score: 0 };
+            const getSessionWinner = (finalResults) => {
+                if (finalResults.length === 0) return { name: "N/A", score: 0 };
                 
                 // Sắp xếp theo điểm số giảm dần
-                allPlayers.sort((a, b) => b.score - a.score);
+                finalResults.sort((a, b) => b.score - a.score);
                 
-                const topScore = allPlayers[0].score;
+                const topScore = finalResults[0].score;
                 // Lấy tất cả người chơi có điểm số cao nhất (có thể hòa)
-                const winners = allPlayers.filter(p => p.score === topScore);
+                const winners = finalResults.filter(p => p.score === topScore);
                 
                 if (winners.length === 1) {
                     return { name: winners[0].name, score: topScore };
@@ -66,7 +90,7 @@
 
 
             useEffect(() => {
-                if (GITHUB_USERNAME === "YOUR_GITHUB_USERNAME" || REPO_NAME === "YOUR_REPO_NAME") {
+                if (GITHUB_USERNAME === "duphan97" || REPO_NAME === "9cay") {
                     setError("Lỗi cấu hình: Vui lòng thay thế YOUR_GITHUB_USERNAME và YOUR_REPO_NAME trong file history.html!");
                     setLoading(false);
                     return;
@@ -126,10 +150,35 @@
 
             return (
                 <div>
-                    <h1 className="text-3xl font-bold text-center text-purple-600 mb-6">📜 Lịch Sử Các Phiên Chơi ({sessions.length})</h1>
+                    <h1 className="text-3xl font-bold text-center text-purple-600 mb-6">📜 Lịch Sử & Bảng Xếp Hạng ({sessions.length} Phiên)</h1>
+                    
+                    {/* BẢNG XẾP HẠNG TỔNG ĐIỂM TOÀN THỜI GIAN */}
+                    <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-md">
+                        <h2 className="text-xl font-bold text-blue-800 mb-3 text-center">🏆 Bảng Xếp Hạng Tổng Điểm Toàn Thời Gian</h2>
+                        <div className="space-y-2">
+                            {allTimeScores.map((p, index) => (
+                                <div key={p.name} className={`flex justify-between items-center p-2 rounded ${index < 3 ? 'bg-yellow-100 font-extrabold border-l-4 border-yellow-500' : 'bg-white border'}`}>
+                                    <span className="text-lg">
+                                        {index === 0 && '🥇'}
+                                        {index === 1 && '🥈'}
+                                        {index === 2 && '🥉'}
+                                        {index >= 3 && `${index + 1}. `}
+                                        {p.name}
+                                    </span>
+                                    <span className={`text-xl font-bold ${p.totalScore >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-center text-gray-700 mb-4 border-b pb-2">📋 Chi Tiết Các Phiên</h2>
+                    
+                    {/* DANH SÁCH CHI TIẾT CÁC PHIÊN */}
                     <div className="space-y-6">
                         {sessions.map((session, index) => {
-                            const sessionWinner = getSessionWinner(session.finalPlayers, session.kickedPlayers);
+                            const sessionWinner = getSessionWinner(session.finalResults);
                             
                             return (
                                 <div key={index} className="border border-gray-300 rounded-xl p-4 bg-white shadow-md hover:shadow-lg transition">
@@ -138,7 +187,7 @@
                                             Phiên #{sessions.length - index}
                                         </h2>
                                         <span className={`text-sm font-bold px-3 py-1 rounded-full ${session.gameStatus === 'COMPLETED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {session.roundsPlayed} Ván
+                                            {session.roundsPlayed} Ván ({session.gameStatus === 'COMPLETED' ? 'Hoàn thành' : 'Reset giữa chừng'})
                                         </span>
                                     </div>
                                     
@@ -148,13 +197,13 @@
                                     
                                     <div className={`p-3 rounded-lg border-2 ${sessionWinner.isTie ? 'bg-yellow-100 border-yellow-400' : 'bg-green-100 border-green-400'}`}>
                                         <p className="font-bold text-md flex justify-between">
-                                            Người Thắng: 
+                                            Người Thắng Phiên: 
                                             <span className={sessionWinner.isTie ? 'text-yellow-800' : 'text-green-800'}>
                                                 {sessionWinner.name}
                                             </span>
                                         </p>
                                         <p className="font-bold text-md flex justify-between">
-                                            Điểm Cuối: 
+                                            Điểm Cuối Cùng: 
                                             <span className={sessionWinner.score >= 0 ? 'text-green-800' : 'text-red-800'}>
                                                 {sessionWinner.score > 0 ? `+${sessionWinner.score}` : sessionWinner.score}
                                             </span>
@@ -165,12 +214,12 @@
                                     <div className="space-y-1 text-sm">
                                         {/* Hiển thị Tóm tắt điểm cuối */}
                                         {
-                                            [...session.finalPlayers, ...session.kickedPlayers]
+                                            session.finalResults
                                                 .sort((a, b) => b.score - a.score)
                                                 .map(p => (
                                                 <div key={p.name} className="flex justify-between border-b border-gray-100 pb-0.5">
-                                                    <span className={`font-medium ${session.kickedPlayers.some(k => k.name === p.name) ? 'text-gray-500 italic text-xs' : 'text-gray-800'}`}>
-                                                        {p.name} {session.kickedPlayers.some(k => k.name === p.name) && '(Dừng)'}
+                                                    <span className={`font-medium ${p.status === 'Kicked' ? 'text-gray-500 italic text-xs' : 'text-gray-800'}`}>
+                                                        {p.name} {p.status === 'Kicked' && '(Dừng/Kick)'}
                                                     </span>
                                                     <span className={`font-bold ${p.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         {p.score > 0 ? `+${p.score}` : p.score}
@@ -179,18 +228,6 @@
                                             ))
                                         }
                                     </div>
-
-                                    {/* Nút xem chi tiết ván chơi (Tùy chọn) */}
-                                    {/* <details className="mt-3">
-                                        <summary className="cursor-pointer text-blue-500 hover:text-blue-700 font-medium text-sm">Xem chi tiết từng ván</summary>
-                                        <ul className="text-xs mt-2 space-y-1 bg-blue-50 p-2 rounded">
-                                            {session.detailedHistory.map((round, rIndex) => (
-                                                <li key={rIndex} className="border-b border-blue-200 pb-1">
-                                                    <strong>Ván {round.round}:</strong> Thắng: {round.winner} ({round.isDouble ? 'Double' : 'Thường'})
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </details> */}
                                 </div>
                             );
                         })}
