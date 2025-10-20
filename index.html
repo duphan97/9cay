@@ -56,7 +56,7 @@
 	<script type="text/babel">
 		const { useState, useEffect, useMemo } = React;
         
-        // DANH SÁCH TÊN CỐ ĐỊNH MỚI
+        // DANH SÁCH TÊN CỐ ĐỊNH (ĐÃ THÊM LẠI)
         const FIXED_PLAYER_NAMES = [
             "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
             "Dự Phan", "Định Ngô", "Đông Lê", 
@@ -77,7 +77,7 @@
 		  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem("roundsStartCount")) || 0);
 
 		  // Trạng thái phiên hiện tại
-          const [selectedPlayerName, setSelectedPlayerName] = useState(""); 
+          const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
 		  const [winner, setWinner] = useState("");
 		  const [doubleNext, setDoubleNext] = useState(false);
 		  const [manualMode, setManualMode] = useState(false);
@@ -90,12 +90,11 @@
 		  // Tối ưu: Gộp trạng thái Modal và dữ liệu liên quan
 		  const [modal, setModal] = useState({ type: null, data: null }); 
           
-          // THAY ĐỔI: State quản lý nhạc nền Double
+          // State quản lý nhạc nền Double (ĐÃ THÊM LẠI)
           const [doubleMusic, setDoubleMusic] = useState(null); 
 		  
-        // --- LOGIC AUDIO ---
+        // --- LOGIC AUDIO (ĐÃ THÊM LẠI) ---
         
-        // Hàm chuyển tên có dấu/khoảng trắng thành tên file không dấu (dùng để truy cập file MP3)
         const slugifyPlayerName = (name) => {
             return name
                 .toLowerCase()
@@ -105,38 +104,32 @@
                 .replace(/đ/g, 'd'); 
         };
         
-        // Hàm phát audio đơn giản
         const playAudio = (path) => {
              const fullPath = path.startsWith('audio/') ? path : `audio/${path}`; 
              const audio = new Audio(fullPath);
              audio.play().catch(e => {
                 console.error(`Lỗi phát audio ${fullPath}:`, e.name);
             });
-            return audio; // Trả về đối tượng audio để xử lý tiếp
+            return audio; 
         };
         
-        // SỬA LỖI CHỒNG CHÉO: Hàm phát audio tên người thắng (Sử dụng onended)
         const playWinnerAudio = (winnerName, isDouble) => {
             const baseAudioFile = isDouble ? 'double.mp3' : 'daghidiem.mp3';
             const winnerSlug = slugifyPlayerName(winnerName);
             const winnerAudioFile = `${winnerSlug}.mp3`;
             
-            // 1. Phát audio thông báo 
             const baseAudio = playAudio(baseAudioFile);
 
-            // 2. Chờ file thông báo kết thúc, sau đó phát tên người thắng
             baseAudio.onended = () => {
                 playAudio(winnerAudioFile);
             };
             
-            // 3. Dự phòng: Nếu file thông báo lỗi/bị hủy, vẫn phát tên người thắng sau 1 giây
             baseAudio.onerror = baseAudio.onabort = () => {
                  console.warn(`File thông báo ${baseAudioFile} lỗi, phát tên người thắng sau 1 giây.`);
                  setTimeout(() => playAudio(winnerAudioFile), 1000);
             };
         };
         
-        // Hàm phát audio đếm ngược vòng đấu
         const playRoundEndAudio = (remainingRounds) => {
             let fileToPlay = null;
             if (remainingRounds === 3) {
@@ -150,7 +143,6 @@
             }
             
             if (fileToPlay) {
-                // Phát sau 3.5 giây để tránh chồng lấn hoàn toàn với audio ghi điểm và tên
                 setTimeout(() => playAudio(fileToPlay), 3500); 
             }
         };
@@ -174,7 +166,6 @@
                 }
             }
             
-            // Cleanup: Đảm bảo nhạc dừng khi component unmount
             return () => {
                 if (doubleMusic) {
                     doubleMusic.pause();
@@ -191,9 +182,7 @@
 		  
 		  const effectiveRemainingRounds = useMemo(() => {
 			if (totalRounds === null) return null;
-			// Số ván đã chơi kể từ lần set cuối cùng
 			const playedSinceSet = recordedRounds - roundsStartCount; 
-			// Ván còn lại = Tổng số ván đã set - Số ván đã chơi kể từ lần set
 			const remaining = totalRounds - playedSinceSet;
 			return remaining; 
 		  }, [totalRounds, recordedRounds, roundsStartCount]);
@@ -203,31 +192,37 @@
 			[totalRounds, effectiveRemainingRounds]
 		  );
           
-          // --- CẬP NHẬT: LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
+          // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
           
-          // Hàm tạo đối tượng dữ liệu phiên chơi
+          // Hàm tạo đối tượng dữ liệu phiên chơi (ĐÃ ĐƠN GIẢN HÓA THEO YÊU CẦU MỚI)
           const createSessionData = () => {
-              const recordHistory = history.filter(h => h.type === "record");
-
+              // Lấy tất cả người chơi, sắp xếp người đang chơi lên trước
+              const allFinalPlayers = [
+                  ...players.map(p => ({ 
+                      name: p.name, 
+                      score: p.score, 
+                      status: 'Playing' 
+                  })), 
+                  ...kickedPlayers.map(p => ({ 
+                      name: p.name, 
+                      score: p.score, 
+                      status: 'Kicked' 
+                  }))
+              ];
+              
+              // Chỉ lưu kết quả cuối, KHÔNG lưu detailedHistory nữa.
               const sessionData = {
                   sessionId: `Session-${new Date().toISOString()}`,
-                  timestamp: new Date().toISOString(),
+                  timestamp: new Date().toISOString(), // LƯU THỜI GIAN
                   totalRoundsSet: totalRounds,
-                  roundsPlayed: recordHistory.length,
-                  gameStatus: "COMPLETED", 
-                  finalPlayers: players, 
-                  kickedPlayers: kickedPlayers,
-                  detailedHistory: recordHistory.map((h, index) => ({
-                      round: index + 1,
-                      winner: h.winner,
-                      isDouble: h.isDouble,
-                      changes: h.changes
-                  }))
+                  roundsPlayed: history.filter(h => h.type === "record").length,
+                  gameStatus: gameEnded ? "COMPLETED" : "RESET_MID_GAME", 
+                  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
               };
               return sessionData;
           }
 
-          // CẬP NHẬT: Hàm gọi Netlify Function để lưu tự động (SILENT)
+          // Hàm gọi Netlify Function để lưu tự động (SILENT)
           const saveSessionAutomatically = async () => {
               if (!gameEnded) {
                   return; 
@@ -250,26 +245,24 @@
                       console.log("✅ Session saved successfully to GitHub via Netlify Function.");
                   } else {
                       const result = await response.json();
-                      // Log lỗi ra console để tự kiểm tra
                       console.error("❌ Failed to save session. Status:", response.status, "Details:", result);
                   }
               } catch (error) {
-                  // Log lỗi mạng/API ra console
                   console.error("❌ Network/API error during session save:", error);
               }
           };
 
-          // CẬP NHẬT: Trigger tự động lưu (background)
+          // Trigger tự động lưu (background)
           useEffect(() => {
+              // Trigger khi game kết thúc HOẶC khi user nhấn reset sau khi chơi 1 ván
               if (gameEnded) {
-                  // Gọi hàm lưu tự động sau 4 giây để tránh chồng chéo với audio "gameover"
                   setTimeout(() => {
                       saveSessionAutomatically();
                   }, 4000); 
               }
           }, [gameEnded]);
           
-          // --- KẾT THÚC CẬP NHẬT LOGIC LƯU ---
+          // --- KẾT THÚC LOGIC LƯU ---
 
 
 		  // Lưu trữ dữ liệu vào localStorage
@@ -289,6 +282,7 @@
 			setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
 		  };
 
+          // Hàm thêm người chơi (ĐÃ CẬP NHẬT DÙNG selectedPlayerName)
 		  const addPlayer = () => {
 			const totalPlaying = players.length;
 			if (totalPlaying >= 5) return; 
@@ -317,12 +311,18 @@
 				return showTempMessage(`✅ ${name} đã quay lại trò chơi!`, "info");
 			}
 			
-			// Thêm người chơi mới
+			// Thêm người chơi mới (Chỉ xảy ra nếu tên nằm trong FIXED_PLAYER_NAMES và chưa chơi)
 			setPlayers([...players, { name, score: 0 }]);
             setSelectedPlayerName("");
 		  };
 
-		  const confirmReset = () => setModal({ type: 'reset', data: null });
+		  const confirmReset = () => {
+            if (history.length > 0) {
+                 // Nếu có lịch sử, tạo session data với trạng thái 'RESET_MID_GAME' trước khi reset
+                 saveSessionAutomatically();
+            }
+            setModal({ type: 'reset', data: null });
+          }
 		  const cancelModal = () => setModal({ type: null, data: null });
 		  
 		  const resetGame = () => {
@@ -370,7 +370,7 @@
 			  delta: p.score - players[i].score,
 			}));
 
-			const wasDouble = doubleNext; // Lưu trạng thái double trước khi reset
+			const wasDouble = doubleNext; 
 			const newHistory = [...history, { type: "record", winner, changes, isDouble: wasDouble }];
             
 			setPlayers(updatedPlayers);
@@ -626,10 +626,9 @@
 		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
 		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
           
-          // Lọc ra các tên chưa có trong danh sách đang chơi
+          // Lọc ra các tên chưa có trong danh sách đang chơi (ĐÃ THÊM LẠI)
           const availablePlayerNames = useMemo(() => {
               const playingNames = players.map(p => p.name);
-              // Lấy tất cả tên không có trong danh sách đang chơi, bao gồm cả những người đã dừng chơi (nếu tên đó có trong FIXED_PLAYER_NAMES)
               return FIXED_PLAYER_NAMES.filter(name => !playingNames.includes(name));
           }, [players]);
 
@@ -660,7 +659,7 @@
 				</div>
 			  )}
 
-			  {/* THAY ĐỔI: Thêm người chơi bằng Dropdown */}
+			  {/* THAY ĐỔI: Thêm người chơi bằng Dropdown (ĐÃ THÊM LẠI) */}
 			  <div className="flex mb-3">
 				<select
                   className="flex-grow border rounded-l-lg px-3 py-2 bg-white"
@@ -847,7 +846,19 @@
 				</>
 			  )}
 			  
-			  {/* Nút Export và Reset (Đã loại bỏ nút Lưu Tự Động) */}
+			  {/* CẬP NHẬT: Nút Xem Lịch Sử Tổng Hợp (Chuyển sang đường dẫn riêng) */}
+              <div className="mt-4">
+                  <a 
+                      href="history.html"
+                      className="inline-block w-full text-center bg-purple-600 text-white px-3 py-2 rounded font-bold transition hover:bg-purple-700" 
+                      target="_blank" // Mở trong tab mới
+                      rel="noopener noreferrer"
+                  >
+                      📊 Xem Lịch Sử Tổng Hợp
+                  </a>
+              </div>
+
+			  {/* Nút Export và Reset */}
 			  <div className="flex justify-end gap-4 mt-4">
 				 <button 
 					className={`bg-gray-500 text-white px-3 py-2 rounded ${history.length === 0 && players.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`} 
@@ -864,7 +875,7 @@
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
 				  <div className="bg-white p-5 rounded-xl shadow-lg text-center w-full max-w-sm mx-4">
 					
-					{/* Modal Xác nhận Reset */}
+					{/* Modal Reset */}
 					{modal.type === 'reset' && (
 						<>
 						  <p className="font-semibold mb-4">Reset toàn bộ dữ liệu?</p>
@@ -875,7 +886,7 @@
 						</>
 					)}
 					
-					{/* Modal Xác nhận Kick */}
+					{/* Modal Kick */}
 					{modal.type === 'kick' && modal.data && (
 						<>
 						  <p className="font-semibold mb-4">Đá đít <span className="text-red-600 font-bold">{modal.data.name}</span> khỏi trò chơi?</p>
@@ -886,7 +897,7 @@
 						</>
 					)}
 
-					{/* Modal Xác nhận Comeback */}
+					{/* Modal Comeback */}
 					{modal.type === 'comeback' && modal.data && (
 						<>
 						  <p className="font-semibold mb-4">Đưa <span className="text-green-600 font-bold">{modal.data.player.name}</span> quay lại?</p>
@@ -897,7 +908,7 @@
 						</>
 					)}
 					
-					{/* Modal Xác nhận Ghi điểm */}
+					{/* Modal Ghi điểm */}
 					{modal.type === 'record' && (
 						<>
 						  <p className="font-semibold mb-4">
@@ -914,7 +925,7 @@
 						</>
 					)}
 
-					{/* Modal Xác nhận Hoàn tác */}
+					{/* Modal Hoàn tác */}
 					{modal.type === 'undo' && modal.data && (
 						<>
 						  <p className="font-semibold mb-2 text-red-600">
@@ -966,7 +977,7 @@
 						</>
 					)}
 					
-					{/* Modal Xác nhận Export CSV */}
+					{/* Modal Export CSV */}
 					{modal.type === 'export' && (
 						<>
 						  <p className="font-semibold mb-4">Xuất dữ liệu ra file CSV?</p>
