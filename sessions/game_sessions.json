@@ -103,5 +103,40 @@
       }
     ],
     "serverTimestamp": "2025-10-20T18:15:21.343Z"
+  },
+  {
+    "sessionId": "Session-2025-10-20T18:20:52.519Z",
+    "timestamp": "2025-10-20T18:20:52.519Z",
+    "totalRoundsSet": 3,
+    "roundsPlayed": 6,
+    "gameStatus": "COMPLETED",
+    "finalResults": [
+      {
+        "name": "Dự Phan",
+        "score": 11,
+        "status": "Playing"
+      },
+      {
+        "name": "Đông Lê",
+        "score": -9,
+        "status": "Playing"
+      },
+      {
+        "name": "Định Ngô",
+        "score": 6,
+        "status": "Playing"
+      },
+      {
+        "name": "Nhân Trần",
+        "score": -10,
+        "status": "Playing"
+      },
+      {
+        "name": "Minh Anh",
+        "score": 2,
+        "status": "Playing"
+      }
+    ],
+    "serverTimestamp": "2025-10-20T18:19:58.653Z"
   }
 ]
