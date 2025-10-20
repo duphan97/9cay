@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@octokit/core": "^6.0.1"
+    "@octokit/core": "^6.0.1",
+    "node-fetch": "^2.6.1"  // <--- ĐÃ THÊM GÓI NÀY ĐỂ FIX LỖI
   }
 }
