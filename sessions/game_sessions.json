@@ -1,0 +1,119 @@
+[
+  {
+    "sessionId": "Session-2025-10-20T17:36:15.372Z",
+    "timestamp": "2025-10-20T17:36:15.372Z",
+    "totalRoundsSet": 2,
+    "roundsPlayed": 4,
+    "gameStatus": "COMPLETED",
+    "finalPlayers": [
+      {
+        "name": "Dự Phan",
+        "score": -5
+      },
+      {
+        "name": "Đông Lê",
+        "score": -5
+      },
+      {
+        "name": "Định Ngô",
+        "score": 10
+      },
+      {
+        "name": "Bình Đặng",
+        "score": 0
+      }
+    ],
+    "kickedPlayers": [],
+    "detailedHistory": [
+      {
+        "round": 1,
+        "winner": "Định Ngô",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": 2
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "winner": "Bình Đặng",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Bình Đặng",
+            "delta": 3
+          }
+        ]
+      },
+      {
+        "round": 3,
+        "winner": "Định Ngô",
+        "isDouble": true,
+        "changes": [
+          {
+            "name": "Dự Phan",
+            "delta": -2
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -2
+          },
+          {
+            "name": "Định Ngô",
+            "delta": 6
+          },
+          {
+            "name": "Bình Đặng",
+            "delta": -2
+          }
+        ]
+      },
+      {
+        "round": 4,
+        "winner": "Định Ngô",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": 3
+          },
+          {
+            "name": "Bình Đặng",
+            "delta": -1
+          }
+        ]
+      }
+    ],
+    "serverTimestamp": "2025-10-20T17:35:21.864Z"
+  }
+]
