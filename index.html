@@ -367,7 +367,7 @@
             
             // 3. The useEffect [gameEnded, isSessionSaved] will handle saveSessionAutomatically
             
-            showTempMessage("💰 Tính tiền phiên chơi! Dữ liệu đang được lưu...", "info", 4000); 
+            showTempMessage("💰Nhớ banking sớm nhé!", "info", 4000); 
             setModal({ type: null, data: null });
         };
 
@@ -932,7 +932,6 @@
 					{modal.type === 'settle' && (
 						<>
 						  <p className="font-semibold mb-4 text-orange-600">Bạn muốn kết thúc và Tính tiền ngay?</p>
-                          <p className='text-sm text-gray-600 mb-4'>Hệ thống sẽ lưu phiên chơi này trước khi kết thúc.</p>
 						  <div className="flex justify-center gap-4">
 							<button className="bg-orange-500 text-white px-4 py-2 rounded" onClick={settleGame}>Xác nhận Tính tiền</button>
 							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
@@ -1108,3 +1107,4 @@
 	  
 </body>
 </html>
+
