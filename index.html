@@ -626,7 +626,7 @@
 			  {/* Điều chỉnh: Vị trí và kích thước thông báo */}
 				{message && (
 				  <div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
-					<div className={`px-6 py-4 rounded-xl shadow-2xl text-xl font-bold transition-all duration-300 text-center ${ 
+					<div className={`px-4 py-3 rounded-xl shadow-2xl text-lg font-bold transition-all duration-300 text-center w-full max-w-xs mx-4 ${ // ĐÃ ĐIỀU CHỈNH
 					  messageType === "warning" ? "bg-yellow-400 text-black"
 					  : messageType === "error" ? "bg-red-200 text-red-800"
 					  : messageType === "success" ? "bg-green-600 text-white"
@@ -634,7 +634,7 @@
 					}`}>
 					  {message}{" "}
 					  {/* Chỉ hiển thị messageWinner khi có và messageType là success (ghi điểm) */}
-					  {messageWinner && messageType === "success" && <span className="text-red-600 text-2xl font-bold">{messageWinner}</span>} 
+					  {messageWinner && messageType === "success" && <span className="text-red-600 text-xl font-bold">{messageWinner}</span>} {/* ĐÃ ĐIỀU CHỈNH */}
 					</div>
 				  </div>
 				)}
@@ -834,20 +834,21 @@
 				</>
 			  )}
 			  
-			  {/* Nút Tính tiền và Reset (Đã bỏ Export) */}
-			  <div className="flex justify-between gap-2 mt-4">
-                {/* Dùng div để căn chỉnh 2 nút cuối cùng về phía bên phải */}
-                <div className="flex-grow"></div> 
-                {/* NÚT TÍNH TIỀN MỚI */}
+			  {/* Nút Tính tiền và Reset (ĐÃ ĐIỀU CHỈNH CHIA ĐÔI ĐỘ RỘNG) */}
+			  <div className="flex gap-2 mt-4">
 				<button 
-                   className={`bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
+                   className={`flex-1 bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
                    onClick={confirmSettle}
                    disabled={gameEnded}
                 >
                    💰 Tính tiền
                 </button>
-                {/* END NÚT TÍNH TIỀN MỚI */}
-				<button className="bg-red-500 text-white px-3 py-2 rounded" onClick={confirmReset}>Reset</button>
+				<button 
+                    className="flex-1 bg-red-500 text-white px-3 py-2 rounded" 
+                    onClick={confirmReset}
+                >
+                    Reset
+                </button>
 			  </div>
 
 			  {/* START: Gộp các Modal */}
