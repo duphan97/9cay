@@ -15,7 +15,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- CẤU HÌNH GITHUB (BẮT BUỘC PHẢI THAY THẾ) ---
+        // --- CẤU HÌNH GITHUB (ĐÃ CẬP NHẬT) ---
         const GITHUB_USERNAME = "duphan97"; 
         const REPO_NAME = "9cay"; 
         const HISTORY_FILE_PATH = "sessions/game_sessions.json";
@@ -69,32 +69,7 @@
                 }
             };
             
-            // Hàm tính người có điểm số cao nhất (winner) của phiên
-            const getSessionWinner = (finalResults) => {
-                if (finalResults.length === 0) return { name: "N/A", score: 0 };
-                
-                // Sắp xếp theo điểm số giảm dần
-                finalResults.sort((a, b) => b.score - a.score);
-                
-                const topScore = finalResults[0].score;
-                // Lấy tất cả người chơi có điểm số cao nhất (có thể hòa)
-                const winners = finalResults.filter(p => p.score === topScore);
-                
-                if (winners.length === 1) {
-                    return { name: winners[0].name, score: topScore };
-                } else if (winners.length > 1) {
-                    return { name: winners.map(w => w.name).join(' & '), score: topScore, isTie: true };
-                }
-                return { name: "N/A", score: 0 };
-            };
-
-
             useEffect(() => {
-                if (GITHUB_USERNAME === "YOUR_GITHUB_USERNAME" || REPO_NAME === "YOUR_REPO_NAME") {
-                    setError("Lỗi cấu hình: Vui lòng thay thế YOUR_GITHUB_USERNAME và YOUR_REPO_NAME trong file history.html!");
-                    setLoading(false);
-                    return;
-                }
                 
                 const fetchHistory = async () => {
                     setLoading(true);
@@ -178,8 +153,11 @@
                     {/* DANH SÁCH CHI TIẾT CÁC PHIÊN */}
                     <div className="space-y-6">
                         {sessions.map((session, index) => {
-                            const sessionWinner = getSessionWinner(session.finalResults);
                             
+                            // Tìm người có điểm số cao nhất trong finalResults
+                            const sortedFinalResults = session.finalResults.sort((a, b) => b.score - a.score);
+                            const topPlayer = sortedFinalResults.length > 0 ? sortedFinalResults[0] : null;
+
                             return (
                                 <div key={index} className="border border-gray-300 rounded-xl p-4 bg-white shadow-md hover:shadow-lg transition">
                                     <div className="flex justify-between items-center mb-2 border-b pb-2">
@@ -195,20 +173,17 @@
                                         🗓️ <span className="font-medium">{formatSessionDate(session.timestamp)}</span>
                                     </p>
                                     
-                                    <div className={`p-3 rounded-lg border-2 ${sessionWinner.isTie ? 'bg-yellow-100 border-yellow-400' : 'bg-green-100 border-green-400'}`}>
-                                        <p className="font-bold text-md flex justify-between">
-                                            Người Thắng Phiên: 
-                                            <span className={sessionWinner.isTie ? 'text-yellow-800' : 'text-green-800'}>
-                                                {sessionWinner.name}
-                                            </span>
-                                        </p>
-                                        <p className="font-bold text-md flex justify-between">
-                                            Điểm Cuối Cùng: 
-                                            <span className={sessionWinner.score >= 0 ? 'text-green-800' : 'text-red-800'}>
-                                                {sessionWinner.score > 0 ? `+${sessionWinner.score}` : sessionWinner.score}
-                                            </span>
-                                        </p>
-                                    </div>
+                                    {/* HIỂN THỊ ĐIỂM CAO NHẤT (Không hiển thị tên người thắng) */}
+                                    {topPlayer && (
+                                        <div className={`p-3 rounded-lg border-2 bg-yellow-100 border-yellow-400`}>
+                                            <p className="font-bold text-md flex justify-between">
+                                                Điểm số cao nhất: 
+                                                <span className={topPlayer.score >= 0 ? 'text-green-800' : 'text-red-800'}>
+                                                    {topPlayer.score > 0 ? `+${topPlayer.score}` : topPlayer.score}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    )}
                                     
                                     <h3 className="text-md font-semibold mt-3 mb-1 text-gray-700">Chi tiết điểm cuối:</h3>
                                     <div className="space-y-1 text-sm">
