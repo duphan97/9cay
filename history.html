@@ -125,7 +125,7 @@
 
             return (
                 <div>
-                    <h1 className="text-3xl font-bold text-center text-purple-600 mb-6">📜 Lịch Sử & Bảng Xếp Hạng ({sessions.length} Phiên)</h1>
+                    <h1 className="text-3xl font-bold text-center text-purple-600 mb-6">📜 Lịch Sử & Bảng Xếp Hạng Tổng Hợp ({sessions.length} Phiên)</h1>
                     
                     {/* BẢNG XẾP HẠNG TỔNG ĐIỂM TOÀN THỜI GIAN */}
                     <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-md">
@@ -154,9 +154,8 @@
                     <div className="space-y-6">
                         {sessions.map((session, index) => {
                             
-                            // Tìm người có điểm số cao nhất trong finalResults
+                            // Sắp xếp người chơi theo điểm số cuối cùng
                             const sortedFinalResults = session.finalResults.sort((a, b) => b.score - a.score);
-                            const topPlayer = sortedFinalResults.length > 0 ? sortedFinalResults[0] : null;
 
                             return (
                                 <div key={index} className="border border-gray-300 rounded-xl p-4 bg-white shadow-md hover:shadow-lg transition">
@@ -173,28 +172,15 @@
                                         🗓️ <span className="font-medium">{formatSessionDate(session.timestamp)}</span>
                                     </p>
                                     
-                                    {/* HIỂN THỊ ĐIỂM CAO NHẤT (Không hiển thị tên người thắng) */}
-                                    {topPlayer && (
-                                        <div className={`p-3 rounded-lg border-2 bg-yellow-100 border-yellow-400`}>
-                                            <p className="font-bold text-md flex justify-between">
-                                                Điểm số cao nhất: 
-                                                <span className={topPlayer.score >= 0 ? 'text-green-800' : 'text-red-800'}>
-                                                    {topPlayer.score > 0 ? `+${topPlayer.score}` : topPlayer.score}
-                                                </span>
-                                            </p>
-                                        </div>
-                                    )}
-                                    
-                                    <h3 className="text-md font-semibold mt-3 mb-1 text-gray-700">Chi tiết điểm cuối:</h3>
-                                    <div className="space-y-1 text-sm">
-                                        {/* Hiển thị Tóm tắt điểm cuối */}
+                                    {/* Danh sách người chơi và điểm cuối */}
+                                    <div className="mt-2 space-y-1 text-sm pt-2 border-t"> 
+                                        {/* Hiển thị Danh sách tên và điểm số cuối cùng (Đã sắp xếp) */}
                                         {
-                                            session.finalResults
-                                                .sort((a, b) => b.score - a.score)
+                                            sortedFinalResults
                                                 .map(p => (
-                                                <div key={p.name} className="flex justify-between border-b border-gray-100 pb-0.5">
+                                                <div key={p.name} className="flex justify-between">
                                                     <span className={`font-medium ${p.status === 'Kicked' ? 'text-gray-500 italic text-xs' : 'text-gray-800'}`}>
-                                                        {p.name} {p.status === 'Kicked' && '(Dừng/Kick)'}
+                                                        {p.name} {p.status === 'Kicked' && '(Dừng)'}
                                                     </span>
                                                     <span className={`font-bold ${p.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         {p.score > 0 ? `+${p.score}` : p.score}
