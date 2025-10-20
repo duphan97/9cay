@@ -55,6 +55,15 @@
 
 	<script type="text/babel">
 		const { useState, useEffect, useMemo } = React;
+        
+        // DANH SÁCH TÊN CỐ ĐỊNH MỚI
+        const FIXED_PLAYER_NAMES = [
+            "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
+            "Dự Phan", "Định Ngô", "Đông Lê", 
+            "Khánh Đỗ", "Minh Anh", "Nhân Trần", 
+            "Quý Huỳnh", "Tuấn Nguyễn"
+        ];
+        // END DANH SÁCH TÊN
 
 		function App() {
 		  // Dữ liệu chính
@@ -68,7 +77,7 @@
 		  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem("roundsStartCount")) || 0);
 
 		  // Trạng thái phiên hiện tại
-		  const [newName, setNewName] = useState("");
+          const [selectedPlayerName, setSelectedPlayerName] = useState(""); 
 		  const [winner, setWinner] = useState("");
 		  const [doubleNext, setDoubleNext] = useState(false);
 		  const [manualMode, setManualMode] = useState(false);
@@ -80,7 +89,102 @@
 		  
 		  // Tối ưu: Gộp trạng thái Modal và dữ liệu liên quan
 		  const [modal, setModal] = useState({ type: null, data: null }); 
+          
+          // THAY ĐỔI: State quản lý nhạc nền Double
+          const [doubleMusic, setDoubleMusic] = useState(null); 
 		  
+        // --- LOGIC AUDIO MỚI (ĐÃ SỬA LỖI CHỒNG CHÉO VÀ THÊM NHẠC DOUBLE) ---
+        
+        // Hàm chuyển tên có dấu/khoảng trắng thành tên file không dấu (dùng để truy cập file MP3)
+        const slugifyPlayerName = (name) => {
+            return name
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "") 
+                .replace(/\s+/g, '') 
+                .replace(/đ/g, 'd'); 
+        };
+        
+        // Hàm phát audio đơn giản
+        const playAudio = (path) => {
+             const fullPath = path.startsWith('audio/') ? path : `audio/${path}`; 
+             const audio = new Audio(fullPath);
+             audio.play().catch(e => {
+                console.error(`Lỗi phát audio ${fullPath}:`, e.name);
+            });
+            return audio; // Trả về đối tượng audio để xử lý tiếp
+        };
+        
+        // SỬA LỖI CHỒNG CHÉO: Hàm phát audio tên người thắng (Sử dụng onended)
+        const playWinnerAudio = (winnerName, isDouble) => {
+            const baseAudioFile = isDouble ? 'double.mp3' : 'daghidiem.mp3';
+            const winnerSlug = slugifyPlayerName(winnerName);
+            const winnerAudioFile = `${winnerSlug}.mp3`;
+            
+            // 1. Phát audio thông báo 
+            const baseAudio = playAudio(baseAudioFile);
+
+            // 2. Chờ file thông báo kết thúc, sau đó phát tên người thắng
+            baseAudio.onended = () => {
+                playAudio(winnerAudioFile);
+            };
+            
+            // 3. Dự phòng: Nếu file thông báo lỗi/bị hủy, vẫn phát tên người thắng sau 1 giây
+            baseAudio.onerror = baseAudio.onabort = () => {
+                 console.warn(`File thông báo ${baseAudioFile} lỗi, phát tên người thắng sau 1 giây.`);
+                 setTimeout(() => playAudio(winnerAudioFile), 1000);
+            };
+        };
+        
+        // Hàm phát audio đếm ngược vòng đấu
+        const playRoundEndAudio = (remainingRounds) => {
+            let fileToPlay = null;
+            if (remainingRounds === 3) {
+                 fileToPlay = '3left.mp3';
+            } else if (remainingRounds === 2) {
+                 fileToPlay = '2left.mp3';
+            } else if (remainingRounds === 1) {
+                 fileToPlay = '1left.mp3';
+            } else if (remainingRounds <= 0) {
+                 fileToPlay = 'gameover.mp3';
+            }
+            
+            if (fileToPlay) {
+                // Phát sau 3.5 giây để tránh chồng lấn hoàn toàn với audio ghi điểm và tên
+                setTimeout(() => playAudio(fileToPlay), 3500); 
+            }
+        };
+        
+        // LOGIC QUẢN LÝ NHẠC NỀN DOUBLE
+        useEffect(() => {
+            if (doubleNext) {
+                if (!doubleMusic) {
+                    const music = new Audio('audio/doublemusic.mp3');
+                    music.loop = true; 
+                    music.volume = 0.4; 
+                    setDoubleMusic(music);
+                    
+                    music.play().catch(e => console.error("Lỗi phát nhạc nền Double:", e.name));
+                } else {
+                    doubleMusic.play().catch(e => console.error("Lỗi tiếp tục phát nhạc nền Double:", e.name));
+                }
+            } else {
+                if (doubleMusic) {
+                    doubleMusic.pause();
+                }
+            }
+            
+            // Cleanup: Đảm bảo nhạc dừng khi component unmount
+            return () => {
+                if (doubleMusic) {
+                    doubleMusic.pause();
+                }
+            };
+        }, [doubleNext, doubleMusic]);
+        
+        // --- KẾT THÚC LOGIC AUDIO MỚI ---
+
+
 		  // Tính toán trạng thái vòng đấu
 		  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
 		  const currentRound = recordedRounds + 1;
@@ -120,36 +224,52 @@
 			const totalPlaying = players.length;
 			if (totalPlaying >= 5) return; 
 
-			const name = newName.trim();
-			if (!name) return;
+			const name = selectedPlayerName.trim(); 
+			if (!name) { 
+                showTempMessage("⚠️ Vui lòng chọn người chơi!", "warning");
+                return;
+            }
+            
+            const availableNames = FIXED_PLAYER_NAMES.filter(n => 
+                !players.some(p => p.name === n)
+            );
+            
+            if (!availableNames.includes(name) && !kickedPlayers.some(p => p.name === name)) {
+                return; 
+            }
 			
-			// Khôi phục người chơi đã dừng (qua nhập tên)
+			// Khôi phục người chơi đã dừng (qua chọn tên)
 			const existingKickedPlayerIndex = kickedPlayers.findIndex(p => p.name === name);
 			if (existingKickedPlayerIndex !== -1) {
 				const playerToRestore = kickedPlayers[existingKickedPlayerIndex];
 				setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== existingKickedPlayerIndex));
 				setPlayers([...players, playerToRestore]);
-				setNewName("");
+                setSelectedPlayerName(""); 
 				return showTempMessage(`✅ ${name} đã quay lại trò chơi!`, "info");
 			}
 			
-			if (players.find(p => p.name === name))
-			  return showTempMessage("⚠️ Tên người chơi đã tồn tại!", "warning");
-			  
+			// Thêm người chơi mới
 			setPlayers([...players, { name, score: 0 }]);
-			setNewName("");
+            setSelectedPlayerName("");
 		  };
 
 		  const confirmReset = () => setModal({ type: 'reset', data: null });
 		  const cancelModal = () => setModal({ type: null, data: null });
 		  
 		  const resetGame = () => {
+            // Dừng nhạc nền khi reset
+            if (doubleMusic) {
+                doubleMusic.pause();
+                setDoubleMusic(null);
+            }
+            
 			setPlayers([]); setKickedPlayers([]); setHistory([]); setWinner("");
 			setDoubleNext(false); setManualMode(false);
 			setTotalRounds(null); 
 			setRoundsStartCount(0);
 			localStorage.clear();
 			setModal({ type: null, data: null });
+            setSelectedPlayerName(""); 
 		  };
 
 		  // Hàm hiển thị Modal xác nhận ghi điểm
@@ -181,31 +301,46 @@
 			  delta: p.score - players[i].score,
 			}));
 
-			const newHistory = [...history, { type: "record", winner, changes, isDouble: doubleNext }];
+			const wasDouble = doubleNext; // Lưu trạng thái double trước khi reset
+			const newHistory = [...history, { type: "record", winner, changes, isDouble: wasDouble }];
+            
 			setPlayers(updatedPlayers);
 			setHistory(newHistory);
-			setWinner("");
-			setDoubleNext(false);
+			
+            // --- XỬ LÝ AUDIO ---
+            playWinnerAudio(winner, wasDouble);
+            
+            // Tính số ván còn lại SAU khi ghi điểm
+            const newRecordedRounds = recordedRounds + 1;
+            const newRemainingRounds = totalRounds === null 
+                ? null 
+                : totalRounds - (newRecordedRounds - roundsStartCount);
+            
+            if (newRemainingRounds !== null) {
+                playRoundEndAudio(newRemainingRounds);
+            }
+            // --------------------
 
-			const messageText = doubleNext 
+			setWinner("");
+			setDoubleNext(false); // Reset Double Next
+
+			const messageText = wasDouble 
 			  ? `✅ Đã ghi điểm ván ${currentRound} (Double) cho`
 			  : `✅ Đã ghi điểm ván ${currentRound} cho`;
 			
 			showTempMessage(messageText, "success", 3000, winner); 
 		  };
 		  
-		  // THAY ĐỔI: Hàm hiển thị Modal xác nhận Hoàn tác (promptUndo)
+		  // Hàm hiển thị Modal xác nhận Hoàn tác (promptUndo)
 		  const promptUndo = () => {
 			if (gameEnded || history.length === 0) return;
 			
-			// 1. Tìm index của bản ghi *record* cuối cùng
 			const lastRecordIndex = history.map(h => h.type).lastIndexOf("record");
 			if (lastRecordIndex === -1) {
 				 return showTempMessage("⚠️ Không có ván nào để hoàn tác!", "warning");
 			}
             
-            // 2. KIỂM TRA KHÔNG ĐƯỢC HOÀN TÁC 2 LẦN LIÊN TIẾP
-            const lastAction = history[history.length - 1].type;
+            const lastAction = history.length > 0 ? history[history.length - 1].type : null;
             if (lastAction === "undo") {
                 return showTempMessage("⚠️ Không thể hoàn tác liên tiếp!", "error");
             }
@@ -218,29 +353,26 @@
 				data: { 
 					lastRecord, 
 					undoRoundNum,
-					lastRecordIndex // Truyền thêm index để xóa
+					lastRecordIndex 
 				} 
 			});
 		  };
 
-		  // THAY ĐỔI: Hàm thực hiện Hoàn tác (executeUndo) - XÓA bản ghi record cuối cùng
+		  // Hàm thực hiện Hoàn tác (executeUndo) - XÓA bản ghi record cuối cùng
 		  const executeUndo = () => {
 			const { lastRecord, undoRoundNum, lastRecordIndex } = modal.data;
-			setModal({ type: null, data: null }); // Đóng modal xác nhận
+			setModal({ type: null, data: null }); 
 
-			// 1. Hoàn điểm: revert điểm bằng cách trừ đi thay đổi cũ
+			// 1. Hoàn điểm
 			const reverted = players.map(p => {
 			  const change = lastRecord.changes.find(c => c.name === p.name)?.delta || 0;
 			  return { ...p, score: p.score - change };
 			});
 			
-			// 2. TẠO MẢNG HISTORY MỚI: Xóa bản ghi ghi điểm (record) cũ và thêm bản ghi hoàn tác (undo) mới
+			// 2. Cập nhật History
 			const tempHistory = [...history];
-			
-			// a) Xóa bản ghi ghi điểm (record) cuối cùng
 			tempHistory.splice(lastRecordIndex, 1);
 			
-			// b) Thêm bản ghi sự kiện hoàn tác (undo) mới
 			const undoEvent = { 
 				type: "undo", 
 				targetRound: undoRoundNum, 
@@ -254,9 +386,15 @@
 
 			// 3. Cập nhật State
 			setPlayers(reverted);
-			setHistory(newHistory); // recordedRounds tự động giảm 1
+			setHistory(newHistory); 
 			setWinner("");
 			setDoubleNext(false);
+            
+            // Dừng nhạc nền Double nếu nó đang chạy và không ai bật lại
+            if (doubleMusic && doubleNext) {
+                doubleMusic.pause();
+                setDoubleMusic(null);
+            }
 			
 			showTempMessage(`↩️ Đã hoàn tác Ván ${undoRoundNum}.`, "info");
 		  };
@@ -290,6 +428,7 @@
 			setKickedPlayers([...kickedPlayers, players[index]]);
 			setPlayers(players.filter((_, idx) => idx !== index));
 			if (winner === name) setWinner("");
+            setSelectedPlayerName(""); 
 			
 			showTempMessage(`🚫 ${name} đã dừng chơi!`);
 			setModal({ type: null, data: null });
@@ -390,7 +529,7 @@
 				
 				allPlayerNames.forEach(name => {
 					const change = h.changes.find(c => c.name === name);
-					row.push(change ? `${change.delta > 0 ? '+' : ''}${change.delta}` : '0');
+					row.push(change ? `${c.delta > 0 ? '+' : ''}${c.delta}` : '0');
 				});
 				return row.join(",");
 			}).filter(row => row !== "").join("\n"); 
@@ -417,7 +556,13 @@
 		  const isFeatureDisabled = manualMode || gameEnded;
 		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
 		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
-
+          
+          // Lọc ra các tên chưa có trong danh sách đang chơi
+          const availablePlayerNames = useMemo(() => {
+              const playingNames = players.map(p => p.name);
+              // Lấy tất cả tên không có trong danh sách đang chơi, bao gồm cả những người đã dừng chơi (nếu tên đó có trong FIXED_PLAYER_NAMES)
+              return FIXED_PLAYER_NAMES.filter(name => !playingNames.includes(name));
+          }, [players]);
 
 		  return (
 			<div className="bg-white rounded-2xl shadow-lg p-5 w-full relative">
@@ -425,7 +570,7 @@
 			  {/* Điều chỉnh: Vị trí và kích thước thông báo */}
 				{message && (
 				  <div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
-					<div className={`px-6 py-4 rounded-xl shadow-2xl text-xl font-bold transition-all duration-300 text-center ${ // THÊM text-center TẠI ĐÂY
+					<div className={`px-6 py-4 rounded-xl shadow-2xl text-xl font-bold transition-all duration-300 text-center ${ 
 					  messageType === "warning" ? "bg-yellow-400 text-black"
 					  : messageType === "error" ? "bg-red-200 text-red-800"
 					  : messageType === "success" ? "bg-green-600 text-white"
@@ -446,24 +591,41 @@
 				</div>
 			  )}
 
-			  {/* Thêm người chơi */}
+			  {/* THAY ĐỔI: Thêm người chơi bằng Dropdown */}
 			  <div className="flex mb-3">
-				<input
-				  className="flex-grow border rounded-l-lg px-3 py-2"
-				  placeholder={isMaxPlayers ? "Đã đủ 5 người chơi" : "Tên người chơi"}
-				  value={newName}
-				  onChange={e => setNewName(e.target.value)}
-				  onKeyDown={e => e.key === "Enter" && addPlayer()}
-				  disabled={isAddPlayerDisabled}
-				/>
+				<select
+                  className="flex-grow border rounded-l-lg px-3 py-2 bg-white"
+                  value={selectedPlayerName}
+                  onChange={e => setSelectedPlayerName(e.target.value)}
+                  disabled={isAddPlayerDisabled}
+                >
+                    {/* THAY ĐỔI: Option mặc định/Full slot */}
+                    {isMaxPlayers ? (
+                        <option value="" disabled>Full slot</option>
+                    ) : (
+                        <option value="" disabled>Chọn người chơi</option>
+                    )}
+
+                    {/* Lọc các tên khả dụng */}
+                    {availablePlayerNames.map(name => {
+                        const isKicked = kickedPlayers.some(p => p.name === name);
+                        return (
+                            <option key={name} value={name}>
+                                {name} {isKicked ? " (Quay lại)" : ""}
+                            </option>
+                        );
+                    })}
+                </select>
 				<button
+				  // Nút "Thêm" bị disable nếu đủ người hoặc chưa chọn tên (selectedPlayerName là "")
 				  className={`px-4 py-2 rounded-r-lg text-white ${
-					isAddPlayerDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
+					isAddPlayerDisabled || !selectedPlayerName ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
 				  }`}
 				  onClick={addPlayer}
-				  disabled={isAddPlayerDisabled}
+				  disabled={isAddPlayerDisabled || !selectedPlayerName}
 				>Thêm</button>
 			  </div>
+              {/* END THAY ĐỔI */}
 
 			  {/* Danh sách người chơi */}
 			  {players.length === 0 ? (
@@ -475,7 +637,9 @@
 					  <li
 						key={i}
 						className={`flex justify-between items-center border rounded-lg px-3 py-2 transition ${
-						  winner === p.name ? "winner-glow font-semibold" : "hover:bg-gray-100"
+						  winner === p.name 
+                            ? "winner-glow font-semibold" 
+                            : "bg-yellow-50 border-gray-300" // Nền vàng nhẹ và viền cố định
 						} ${canSelectWinner ? "cursor-pointer" : "cursor-default"}`}
 						onClick={() => canSelectWinner && setWinner(p.name)}
 					  >
@@ -810,5 +974,3 @@
 	  
 </body>
 </html>
-
-
