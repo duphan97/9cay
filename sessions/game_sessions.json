@@ -508,5 +508,281 @@
       }
     ],
     "serverTimestamp": "2025-10-20T17:43:13.067Z"
+  },
+  {
+    "sessionId": "Session-2025-10-20T17:44:41.982Z",
+    "timestamp": "2025-10-20T17:44:41.982Z",
+    "totalRoundsSet": 1,
+    "roundsPlayed": 9,
+    "gameStatus": "COMPLETED",
+    "finalPlayers": [
+      {
+        "name": "Dũng Nguyễn",
+        "score": -8
+      },
+      {
+        "name": "Định Ngô",
+        "score": -7
+      },
+      {
+        "name": "Đông Lê",
+        "score": 1
+      },
+      {
+        "name": "Nhân Trần",
+        "score": 6
+      },
+      {
+        "name": "Dự Phan",
+        "score": 8
+      }
+    ],
+    "kickedPlayers": [],
+    "detailedHistory": [
+      {
+        "round": 1,
+        "winner": "Nhân Trần",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": 4
+          },
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          }
+        ]
+      },
+      {
+        "round": 2,
+        "winner": "Dự Phan",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": -1
+          },
+          {
+            "name": "Dự Phan",
+            "delta": 4
+          }
+        ]
+      },
+      {
+        "round": 3,
+        "winner": "Đông Lê",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": 4
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": -1
+          },
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          }
+        ]
+      },
+      {
+        "round": 4,
+        "winner": "Dự Phan",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": -1
+          },
+          {
+            "name": "Dự Phan",
+            "delta": 4
+          }
+        ]
+      },
+      {
+        "round": 5,
+        "winner": "Nhân Trần",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": 4
+          },
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          }
+        ]
+      },
+      {
+        "round": 6,
+        "winner": "Đông Lê",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": 4
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": -1
+          },
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          }
+        ]
+      },
+      {
+        "round": 7,
+        "winner": "Nhân Trần",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": 4
+          },
+          {
+            "name": "Dự Phan",
+            "delta": -1
+          }
+        ]
+      },
+      {
+        "round": 8,
+        "winner": "Dự Phan",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": -1
+          },
+          {
+            "name": "Dự Phan",
+            "delta": 4
+          }
+        ]
+      },
+      {
+        "round": 9,
+        "winner": "Dự Phan",
+        "isDouble": false,
+        "changes": [
+          {
+            "name": "Dũng Nguyễn",
+            "delta": -1
+          },
+          {
+            "name": "Định Ngô",
+            "delta": -1
+          },
+          {
+            "name": "Đông Lê",
+            "delta": -1
+          },
+          {
+            "name": "Nhân Trần",
+            "delta": -1
+          },
+          {
+            "name": "Dự Phan",
+            "delta": 4
+          }
+        ]
+      }
+    ],
+    "serverTimestamp": "2025-10-20T17:43:48.090Z"
   }
 ]
