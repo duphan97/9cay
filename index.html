@@ -602,68 +602,11 @@
 			showTempMessage(`✅ Đã đặt còn ${num} ván nữa!`);
 		  };
 
-		  // Bổ sung: Hàm hiển thị Modal xác nhận xuất CSV
-		  const promptExport = () => {
-			if (history.length === 0 && players.length === 0) {
-				return showTempMessage("Chưa có dữ liệu để xuất!", "warning");
-			}
-			setModal({ type: 'export', data: null });
-		  };
+          // LOẠI BỎ logic Export CSV
+		  // const promptExport = () => { ... }
+		  // const executeExport = () => { ... }
+          // END LOẠI BỎ logic Export CSV
 
-		  // START: Hàm export dữ liệu ra CSV (executeExport)
-		  const executeExport = () => {
-			setModal({ type: null, data: null });
-
-			const allPlayerNames = [...new Set([...players.map(p => p.name), ...kickedPlayers.map(p => p.name)])];
-			
-			let csvContent = "";
-			
-			// Phần Điểm cuối cùng
-			csvContent += "Điểm Hiện Tại:\n";
-			csvContent += "Tên Người Chơi,Điểm Số,Trạng Thái\n";
-			players.forEach(p => {
-				csvContent += `"${p.name}",${p.score},Đang chơi\n`;
-			});
-			kickedPlayers.forEach(p => {
-				csvContent += `"${p.name}",${p.score},Đã dừng\n`;
-			});
-			csvContent += "\n\n";
-
-			// Phần Lịch sử Thi Đấu (chỉ lấy các bản ghi type: "record")
-			csvContent += "Lịch Sử Thi Đấu:\n";
-			const historyHeader = ["Ván", "Người Thắng", "Double", ...allPlayerNames];
-			csvContent += historyHeader.map(h => `"${h}"`).join(",") + "\n";
-			
-			let roundCounter = 0;
-			const allHistoryData = history.map((h) => {
-				if (h.type !== "record") return ""; 
-
-				roundCounter++;
-				const row = [`${roundCounter}`, `"${h.winner}"`, `${h.isDouble ? 'Có' : 'Không'}`];
-				
-				allPlayerNames.forEach(name => {
-					const change = h.changes.find(c => c.name === name);
-					row.push(change ? `${c.delta > 0 ? '+' : ''}${c.delta}` : '0');
-				});
-				return row.join(",");
-			}).filter(row => row !== "").join("\n"); 
-
-			csvContent += allHistoryData;
-			
-			const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-			const link = document.createElement("a");
-			const url = URL.createObjectURL(blob);
-			
-			link.setAttribute("href", url);
-			link.setAttribute("download", `Binh9Cay_Data_${new Date().toISOString().slice(0, 10)}.csv`);
-			link.style.visibility = 'hidden';
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-			
-			showTempMessage("✅ Đã xuất dữ liệu ra file CSV!", "info");
-		  };
-		  // END: Hàm export dữ liệu ra CSV
 
 		  const canSelectWinner = players.length >= 2 && !manualMode && !gameEnded;
 		  const isMaxPlayers = players.length >= 5;
@@ -891,15 +834,10 @@
 				</>
 			  )}
 			  
-			  {/* Nút Export, Tính tiền và Reset */}
+			  {/* Nút Tính tiền và Reset (Đã bỏ Export) */}
 			  <div className="flex justify-between gap-2 mt-4">
-				 <button 
-					className={`bg-gray-500 text-white px-3 py-2 rounded ${history.length === 0 && players.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`} 
-					onClick={promptExport} 
-					disabled={history.length === 0 && players.length === 0}
-				>
-					⬇️ Export (CSV)
-				</button>
+                {/* Dùng div để căn chỉnh 2 nút cuối cùng về phía bên phải */}
+                <div className="flex-grow"></div> 
                 {/* NÚT TÍNH TIỀN MỚI */}
 				<button 
                    className={`bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
@@ -1030,16 +968,8 @@
 						</>
 					)}
 					
-					{/* Modal Export CSV */}
-					{modal.type === 'export' && (
-						<>
-						  <p className="font-semibold mb-4">Xuất dữ liệu ra file CSV?</p>
-						  <div className="flex justify-center gap-4">
-							<button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeExport}>Xác nhận Export</button>
-							<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
-						  </div>
-						</>
-					)}
+					{/* LOẠI BỎ Modal Export CSV */}
+					{/* {modal.type === 'export' && ( ... )} */}
 
 				  </div>
 				</div>
@@ -1107,4 +1037,3 @@
 	  
 </body>
 </html>
-
