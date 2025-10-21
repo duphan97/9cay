@@ -358,13 +358,10 @@
           useEffect(() => {
               // CHỈ TRIGGER khi game ENDED và CHƯA được lưu.
               if (gameEnded && !isSessionSaved) { 
-                  setTimeout(() => {
                       saveSessionAutomatically();
-                  }, 2000); 
               }
               
           }, [gameEnded, isSessionSaved]);
-          
           // --- KẾT THÚC LOGIC LƯU ---
 
 
@@ -1132,4 +1129,5 @@
 	  
 </body>
 </html>
+
 
