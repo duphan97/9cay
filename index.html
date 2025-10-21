@@ -252,8 +252,35 @@
                   return;
               }
               
-              const sessionData = createSessionData();
-
+	// Hàm tạo đối tượng dữ liệu phiên chơi 
+			  const createSessionData = () => {
+				  // Lấy TẤT CẢ người chơi (đang chơi và đã dừng)
+				  const allFinalPlayers = [
+					  ...players.map(p => ({ 
+						  name: p.name, 
+						  score: p.score, 
+						  status: 'Playing' // Người đang chơi
+					  })), 
+					  ...kickedPlayers.map(p => ({ 
+						  name: p.name, 
+						  score: p.score, 
+						  status: 'Kicked' // Người đã dừng
+					  }))
+				  ];
+				  
+				  const sessionData = {
+					  // Sử dụng timestamp làm ID phiên
+					  sessionId: `Session-${new Date().toISOString()}`, 
+					  timestamp: new Date().toISOString(), 
+					  totalRoundsSet: totalRounds,
+					  roundsPlayed: history.filter(h => h.type === "record").length,
+					  // Trường này đã bị loại bỏ vì không cần thiết cho mục đích lưu
+					  // gameStatus: gameEnded ? "COMPLETED" : "RESET_MID_GAME", 
+					  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
+				  };
+				  
+				  return sessionData;
+			  }
               console.log("Saving game session automatically to GitHub...");
 
               try {
