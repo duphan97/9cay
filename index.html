@@ -212,11 +212,11 @@
 			[totalRounds, effectiveRemainingRounds]
 		  );
           
-// --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (ROBUST CLIENT-SIDE GITHUB SAVE) ---
+          // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (ROBUST CLIENT-SIDE GITHUB SAVE) ---
           
-          // HÀM TẠO DỮ LIỆU PHIÊN CHƠI
+          // HÀM TẠO DỮ LIỆU PHIÊN CHƠI (Đã chuẩn theo yêu cầu)
           const createSessionData = () => {
-              // Lấy TẤT CẢ người chơi (đang chơi và đã dừng)
+              // Lấy TẤT CẢ người chơi (đang chơi và đã dừng) để có kết quả cuối cùng
               const allFinalPlayers = [
                   ...players.map(p => ({ 
                       name: p.name, 
@@ -231,7 +231,7 @@
               ];
               
               const sessionData = {
-                  // Sử dụng timestamp làm ID phiên
+                  // Sử dụng timestamp làm ID phiên duy nhất
                   sessionId: `Session-${new Date().toISOString()}`, 
                   timestamp: new Date().toISOString(), 
                   totalRoundsSet: totalRounds,
@@ -242,109 +242,67 @@
               return sessionData;
           }
 
-          // HÀM ĐƯỢC CẬP NHẬT: Xử lý lưu tự động với token GitHub
+          // HÀM LƯU LÊN GITHUB ĐÃ TỐI ƯU
           const saveSessionAutomatically = async () => {
-              // Kiểm tra Token đã được điền chưa (một kiểm tra an toàn)
-              if (GITHUB_TOKEN === 'PART_1_OF_YOUR_TOKENPART_2_OF_YOUR_TOKEN') {
-                  console.error("❌ Lỗi: Vui lòng thay thế GITHUB_TOKEN_PART1 và GITHUB_TOKEN_PART2 bằng token hợp lệ.");
+              // 1. Kiểm tra Token trước khi làm bất cứ điều gì
+              if (!GITHUB_TOKEN || GITHUB_TOKEN.includes('PART_1_OF_YOUR_TOKEN')) {
+                  console.error("❌ Lỗi: Vui lòng điền GitHub Token hợp lệ.");
                   showTempMessage("❌ Vui lòng điền GitHub Token hợp lệ!", "error", 5000);
                   return;
               }
 
               if (isSessionSaved) {
-                  console.log("Session already saved, skipping automatic save.");
+                  console.log("✅ Phiên đã được lưu, bỏ qua.");
                   return;
               }
               
-              // Bạn có thể thêm setIsSaving(true) tại đây nếu bạn thêm state isSaving
+              setIsSaving(true); // Bật trạng thái "Đang lưu..."
               
-              const newSessionEntry = createSessionData(); // Dữ liệu phiên mới
+              const newSessionEntry = createSessionData();
+              console.log("Bắt đầu lưu phiên chơi lên GitHub...");
 
-              console.log("Saving game session automatically to GitHub...");
-
-              // 1. Lấy nội dung file hiện tại (để lấy SHA và dữ liệu cũ)
               let currentSha = null;
               let existingHistory = [];
-              let getResponse;
 
               try {
-                  getResponse = await fetch(GITHUB_API_URL, {
+                  // 2. LẤY FILE HIỆN TẠI (GET) để lấy SHA và nội dung cũ
+                  const getResponse = await fetch(GITHUB_API_URL, {
                       method: 'GET',
                       headers: {
                           'Authorization': `token ${GITHUB_TOKEN}`,
                           'Accept': 'application/vnd.github.v3+json',
                       },
                   });
-              } catch (error) {
-                  console.error("❌ Lỗi mạng/API khi GET file:", error);
-                  showTempMessage("❌ Lỗi mạng khi tải lịch sử cũ!", "error", 5000);
-                  return; 
-              }
 
-              // 2. Xử lý phản hồi GET
-              if (getResponse.ok) {
-                  const fileData = await getResponse.json();
-                  currentSha = fileData.sha;
-                  
-                  // **ĐIỂM TINH CHỈNH 1: Làm sạch và xử lý Base64 an toàn**
-                  // Loại bỏ các ký tự không hợp lệ (như xuống dòng, khoảng trắng) trước khi giải mã
-                  const base64Content = fileData.content ? fileData.content.replace(/\s/g, '') : null;
-                  
-                  let content = null;
-                  
-                  if (base64Content) {
-                      try {
-                          // Cố gắng giải mã Base64
-                          content = atob(base64Content); 
-                      } catch (e) {
-                           console.error("❌ Lỗi giải mã Base64 (atob). File có thể bị hỏng:", e);
-                           showTempMessage("⚠️ Lỗi dữ liệu cũ (Base64). Bắt đầu phiên mới.", "warning", 5000);
-                           // Nếu lỗi, content sẽ là null, sẽ tiếp tục bằng cách coi file cũ là rỗng
+                  if (getResponse.ok) {
+                      const fileData = await getResponse.json();
+                      currentSha = fileData.sha;
+                      // Giải mã nội dung Base64 và parse JSON
+                      const content = atob(fileData.content.replace(/\s/g, ''));
+                      const parsedContent = JSON.parse(content);
+                      // Đảm bảo dữ liệu cũ là một mảng
+                      if (Array.isArray(parsedContent)) {
+                          existingHistory = parsedContent;
+                      } else {
+                           throw new Error("Dữ liệu trên GitHub không phải là một mảng.");
                       }
-                  }
-                  
-                  // **ĐIỂM TINH CHỈNH 2: Kiểm tra dữ liệu cũ phải là MẢNG JSON**
-                  if (content) {
-                      try {
-                          const parsedContent = JSON.parse(content);
-                          if (Array.isArray(parsedContent)) {
-                              existingHistory = parsedContent;
-                          } else {
-                              console.warn("⚠️ File GitHub tồn tại nhưng nội dung không phải là mảng JSON. Bắt đầu phiên mới.");
-                              existingHistory = [];
-                              showTempMessage("⚠️ Dữ liệu cũ bị lỗi định dạng. Bắt đầu phiên mới.", "warning", 5000);
-                          }
-                      } catch (e) {
-                           console.error("❌ Lỗi parse JSON file đã có. Bắt đầu phiên mới:", e);
-                           existingHistory = [];
-                           showTempMessage("⚠️ Lỗi Parse JSON file. Đã bắt đầu phiên mới.", "warning", 5000);
-                      }
-                  } else {
+                  } else if (getResponse.status === 404) {
+                      // File chưa tồn tại, đây là lần lưu đầu tiên.
+                      console.log("File chưa tồn tại. Sẽ tạo file mới.");
                       existingHistory = [];
+                  } else {
+                      // Các lỗi khác khi GET file
+                      throw new Error(`Lỗi khi tải lịch sử: ${getResponse.status}`);
                   }
-                  
-              } else if (getResponse.status === 404) {
-                  console.log("File data/session_history.json chưa tồn tại. Sẽ tạo mới.");
-                  existingHistory = []; // Bắt đầu với mảng rỗng
-              } else {
-                   console.error("❌ Lỗi khi GET file. Status:", getResponse.status);
-                   // Thêm kiểm tra chi tiết lỗi nếu có thể
-                   const errorDetails = await getResponse.json(); 
-                   console.error("Chi tiết lỗi:", errorDetails);
-                   
-                   showTempMessage(`❌ Lỗi ${getResponse.status} khi tải lịch sử cũ!`, "error", 5000);
-                   return; 
-              }
-              
-              // 3. Chuẩn bị nội dung mới
-              const updatedHistory = [newSessionEntry, ...existingHistory]; // Thêm mới lên đầu
-              // Sử dụng JSON.stringify với null, 2 để dễ đọc hơn trên GitHub
-              const newContent = btoa(JSON.stringify(updatedHistory, null, 2));
 
-              // 4. Commit lên GitHub
-              const commitMessage = `Auto save session: ${newSessionEntry.roundsPlayed} rounds completed.`;
-              
-              try {
+                  // 3. THÊM DỮ LIỆU MỚI VÀO ĐẦU MẢNG
+                  const updatedHistory = [newSessionEntry, ...existingHistory];
+                  // Chuẩn bị nội dung mới (stringify rồi mã hóa Base64)
+                  const newContent = btoa(JSON.stringify(updatedHistory, null, 2));
+
+                  // 4. GHI ĐÈ FILE (PUT) với nội dung mới và SHA cũ
+                  const commitMessage = `Auto save session: ${newSessionEntry.roundsPlayed} rounds completed.`;
+                  
                   const putResponse = await fetch(GITHUB_API_URL, {
                       method: 'PUT',
                       headers: {
@@ -354,27 +312,26 @@
                       body: JSON.stringify({
                           message: commitMessage,
                           content: newContent,
-                          sha: currentSha // Chỉ thêm sha nếu đang cập nhật (currentSha != null)
+                          sha: currentSha // Rất quan trọng: Gửi sha để cập nhật, nếu không có (file mới) thì không gửi
                       }),
                   });
 
                   if (putResponse.ok) {
-                      console.log("✅ Session saved successfully to GitHub.");
-                      setIsSessionSaved(true); // Đánh dấu đã lưu thành công
-                      showTempMessage("✅ Đã lưu kết quả thành công lên GitHub!", "success", 4000);
+                      console.log("✅ Lưu phiên thành công lên GitHub.");
+                      setIsSessionSaved(true); // Đánh dấu đã lưu
+                      showTempMessage("✅ Đã lưu kết quả lên GitHub!", "success", 4000);
                   } else {
-                      const result = await putResponse.json();
-                      console.error("❌ Failed to save session. Status:", putResponse.status, "Details:", result);
-                      // Lỗi phổ biến là SHA không khớp (ví dụ: file đã được cập nhật bởi nơi khác)
-                      showTempMessage(`❌ Lỗi ${putResponse.status} khi lưu lên GitHub.`, "error", 5000);
+                      // Lỗi khi ghi file
+                      throw new Error(`Lỗi khi lưu lên GitHub: ${putResponse.status}`);
                   }
               } catch (error) {
-                  console.error("❌ Network/API error during session save:", error);
-                  showTempMessage("❌ Lỗi mạng khi lưu lên GitHub!", "error", 5000);
-              } 
-              // Bạn có thể thêm setIsSaving(false) tại đây nếu bạn thêm state isSaving
+                  console.error("❌ Đã xảy ra lỗi trong quá trình lưu:", error);
+                  showTempMessage(`❌ Lỗi: ${error.message}`, "error", 5000);
+              } finally {
+                  setIsSaving(false); // Tắt trạng thái "Đang lưu..." dù thành công hay thất bại
+              }
           };
-
+          
           // Trigger tự động lưu (background)
           useEffect(() => {
               // CHỈ TRIGGER khi game ENDED và CHƯA được lưu.
