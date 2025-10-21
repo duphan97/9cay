@@ -7,13 +7,32 @@
     "gameStatus": "COMPLETED",
     "finalResults": [
       {
-        "name": "Dự Phan",
+        "name": "Dá»± Phan",
         "score": 2,
         "status": "Playing"
       },
       {
-        "name": "Đông Lê",
+        "name": "ÄÃ´ng LÃª",
         "score": -2,
+        "status": "Playing"
+      }
+    ]
+  },
+  {
+    "sessionId": "Session-2025-10-21T02:46:03.052Z",
+    "timestamp": "2025-10-21T02:46:03.052Z",
+    "totalRoundsSet": 1,
+    "roundsPlayed": 1,
+    "gameStatus": "COMPLETED",
+    "finalResults": [
+      {
+        "name": "Dũng Nguyễn",
+        "score": -1,
+        "status": "Playing"
+      },
+      {
+        "name": "Định Ngô",
+        "score": 1,
         "status": "Playing"
       }
     ]
