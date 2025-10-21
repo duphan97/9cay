@@ -243,7 +243,92 @@
           }
 
           // HÀM LƯU LÊN GITHUB ĐÃ TỐI ƯU
+// HÀM LƯU LÊN GITHUB ĐÃ TỐI ƯU
           const saveSessionAutomatically = async () => {
+              // 1. Kiểm tra Token trước khi làm bất cứ điều gì
+              if (!GITHUB_TOKEN || GITHUB_TOKEN.includes('PART_1_OF_YOUR_TOKEN')) {
+                  console.error("❌ Lỗi: Vui lòng điền GitHub Token hợp lệ.");
+                  showTempMessage("❌ Vui lòng điền GitHub Token hợp lệ!", "error", 5000);
+                  return;
+              }
+
+              if (isSessionSaved) {
+                  console.log("✅ Phiên đã được lưu, bỏ qua.");
+                  return;
+              }
+              
+              setIsSaving(true); // Bật trạng thái "Đang lưu..."
+              
+              const newSessionEntry = createSessionData();
+              console.log("Bắt đầu lưu phiên chơi lên GitHub...");
+
+              let currentSha = null;
+              let existingHistory = [];
+
+              try {
+                  // 2. LẤY FILE HIỆN TẠI (GET) để lấy SHA và nội dung cũ
+                  const getResponse = await fetch(GITHUB_API_URL, {
+                      method: 'GET',
+                      headers: {
+                          'Authorization': `token ${GITHUB_TOKEN}`,
+                          'Accept': 'application/vnd.github.v3+json',
+                      },
+                  });
+
+                  if (getResponse.ok) {
+                      const fileData = await getResponse.json();
+                      currentSha = fileData.sha;
+                      const content = atob(fileData.content.replace(/\s/g, ''));
+                      const parsedContent = JSON.parse(content);
+                      if (Array.isArray(parsedContent)) {
+                          existingHistory = parsedContent;
+                      } else {
+                           throw new Error("Dữ liệu trên GitHub không phải là một mảng.");
+                      }
+                  } else if (getResponse.status === 404) {
+                      console.log("File chưa tồn tại. Sẽ tạo file mới.");
+                      existingHistory = [];
+                  } else {
+                      throw new Error(`Lỗi khi tải lịch sử: ${getResponse.status}`);
+                  }
+
+                  // 3. THÊM DỮ LIỆU MỚI VÀO ĐẦU MẢNG
+                  const updatedHistory = [newSessionEntry, ...existingHistory];
+                  
+                  // *** SỬA LỖI Ở ĐÂY ***
+                  // Mã hóa chuỗi JSON có chứa ký tự Unicode một cách an toàn
+                  const newContent = btoa(unescape(encodeURIComponent(JSON.stringify(updatedHistory, null, 2))));
+
+                  // 4. GHI ĐÈ FILE (PUT) với nội dung mới và SHA cũ
+                  const commitMessage = `Auto save session: ${newSessionEntry.roundsPlayed} rounds completed.`;
+                  
+                  const putResponse = await fetch(GITHUB_API_URL, {
+                      method: 'PUT',
+                      headers: {
+                          'Authorization': `token ${GITHUB_TOKEN}`,
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                          message: commitMessage,
+                          content: newContent,
+                          sha: currentSha
+                      }),
+                  });
+
+                  if (putResponse.ok) {
+                      console.log("✅ Lưu phiên thành công lên GitHub.");
+                      setIsSessionSaved(true);
+                      showTempMessage("✅ Đã lưu kết quả lên GitHub!", "success", 4000);
+                  } else {
+                      throw new Error(`Lỗi khi lưu lên GitHub: ${putResponse.status}`);
+                  }
+              } catch (error) {
+                  console.error("❌ Đã xảy ra lỗi trong quá trình lưu:", error);
+                  showTempMessage(`❌ Lỗi: ${error.message}`, "error", 5000);
+              } finally {
+                  setIsSaving(false);
+              }
+          };
               // 1. Kiểm tra Token trước khi làm bất cứ điều gì
               if (!GITHUB_TOKEN || GITHUB_TOKEN.includes('PART_1_OF_YOUR_TOKEN')) {
                   console.error("❌ Lỗi: Vui lòng điền GitHub Token hợp lệ.");
@@ -1126,3 +1211,4 @@
 	  
 </body>
 </html>
+
