@@ -187,8 +187,8 @@
             if (doubleNext) {
                 if (!doubleMusic) {
                     const music = new Audio('audio/doublemusic.mp3');
-                    music.loop = true; 
-                    music.volume = 0.4; 
+                    music.loop = true;
+                    music.volume = 1.0;
                     setDoubleMusic(music);
                     
                     music.play().catch(e => console.error("Lỗi phát nhạc nền Double:", e.name));
@@ -1129,5 +1129,6 @@
 	  
 </body>
 </html>
+
 
 
