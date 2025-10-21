@@ -54,7 +54,7 @@
   <div id="root" class="w-full max-w-md"></div>
 
 	<script type="text/babel">
-		const { useState, useEffect, useMemo } = React;
+		const { useState, useEffect, useMemo, useCallback } = React;
         
         // DANH SÁCH TÊN CỐ ĐỊNH 
         const FIXED_PLAYER_NAMES = [
@@ -66,6 +66,19 @@
         // END DANH SÁCH TÊN
 
 		function App() {
+            
+            // --------------------------------------------------------------------------------------
+            // --- 1. GITHUB CONSTANTS (BẮT BUỘC THAY THẾ) ---
+            // !!! QUAN TRỌNG: CẦN THAY THẾ 'YOUR_PAT_TOKEN' bằng mã token thực tế của bạn
+            const GITHUB_TOKEN = 'YOUR_PAT_TOKEN'; 
+            const REPO_OWNER = 'duphan97';
+            const REPO_NAME = '9cay';     
+            const DATA_FILE_PATH = 'data/session_history.json'; // Đảm bảo đường dẫn này khớp trong repo
+
+            // URL API GitHub (KHÔNG cần thay đổi)
+            const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
+            // --------------------------------------------------------------------------------------
+
 		  // Dữ liệu chính
 		  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem("players")) || []);
 		  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem("kickedPlayers")) || []);
@@ -198,7 +211,7 @@
           // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
           
           // Hàm tạo đối tượng dữ liệu phiên chơi 
-          const createSessionData = () => {
+          const createSessionData = useCallback(() => {
               // Lấy tất cả người chơi, sắp xếp người đang chơi lên trước
               const allFinalPlayers = [
                   ...players.map(p => ({ 
@@ -222,39 +235,98 @@
                   finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
               };
               return sessionData;
-          }
+          }, [players, kickedPlayers, totalRounds, history, gameEnded]);
 
-          // Hàm gọi Netlify Function để lưu tự động (SILENT)
-          const saveSessionAutomatically = async () => {
-              if (isSessionSaved) {
-                  console.log("Session already saved, skipping automatic save.");
-                  return;
-              }
-              
-              const sessionData = createSessionData();
 
-              console.log("Saving game session automatically in background...");
+            // --------------------------------------------------------------------------------------
+            // --- HÀM LƯU SESSION MỚI (SỬ DỤNG GITHUB API) ---
+            // --------------------------------------------------------------------------------------
+            const saveSessionAutomatically = useCallback(async () => {
+                if (isSessionSaved) {
+                    console.log("Session already saved, skipping automatic save.");
+                    return;
+                }
+                
+                const sessionData = createSessionData();
+                console.log("Saving game session automatically to GitHub...");
 
-              try {
-                  const response = await fetch('/.netlify/functions/save-session', {
-                      method: 'POST',
-                      headers: {
-                          'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify(sessionData),
-                  });
+                let currentHistory = [];
+                let currentSHA = null; // SHA được dùng để cập nhật file, null nếu tạo mới
 
-                  if (response.ok) {
-                      console.log("✅ Session saved successfully to GitHub via Netlify Function.");
-                      setIsSessionSaved(true); // Đánh dấu đã lưu thành công
-                  } else {
-                      const result = await response.json();
-                      console.error("❌ Failed to save session. Status:", response.status, "Details:", result);
-                  }
-              } catch (error) {
-                  console.error("❌ Network/API error during session save:", error);
-              }
-          };
+                try {
+                    // --- BƯỚC 1: GET (Lấy SHA và nội dung hiện tại HOẶC xử lý lỗi 404) ---
+                    const getResponse = await fetch(GITHUB_API_URL, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `token ${GITHUB_TOKEN}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                        },
+                    });
+
+                    if (getResponse.ok) {
+                        // Thành công: Lấy nội dung hiện tại và SHA
+                        const fileData = await getResponse.json();
+                        currentSHA = fileData.sha;
+                        // Giải mã nội dung Base64 (atob) và parse thành JSON
+                        currentHistory = JSON.parse(atob(fileData.content));
+                    
+                    } else if (getResponse.status === 404) {
+                        // Lỗi 404: File chưa tồn tại. Tiến hành tạo mới.
+                        console.log("File JSON chưa tồn tại. Tiến hành tạo mới.");
+                        
+                    } else {
+                        // Lỗi khác: Token sai, repo sai, v.v.
+                        throw new Error(`GitHub GET failed: Status ${getResponse.status}. Kiểm tra GITHUB_TOKEN và đường dẫn.`);
+                    }
+
+                    // --- BƯỚC 2: Cập nhật nội dung mới và mã hóa ---
+                    // Nối sessionData mới vào cuối mảng lịch sử cũ
+                    const newHistory = [...currentHistory, sessionData]; 
+                    
+                    // Stringify và mã hóa sang Base64
+                    const newContentBase64 = btoa(JSON.stringify(newHistory, null, 2));
+
+                    // --- BƯỚC 3: PUT (Ghi nội dung mới) ---
+                    const isCreation = currentSHA === null;
+
+                    const putBody = {
+                        message: isCreation 
+                            ? `feat: Initial creation of session history via 9cay app` 
+                            : `update: Add session ${sessionData.sessionId} via 9cay app`, // Thông điệp commit
+                        content: newContentBase64,
+                    };
+                    
+                    // CHỈ THÊM SHA VÀO BODY NẾU ĐANG CẬP NHẬT (Không thêm khi tạo mới)
+                    if (currentSHA) {
+                        putBody.sha = currentSHA;
+                    }
+
+                    const putResponse = await fetch(GITHUB_API_URL, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `token ${GITHUB_TOKEN}`,
+                            'Accept': 'application/vnd.github.v3+json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(putBody),
+                    });
+
+                    if (!putResponse.ok) {
+                        throw new Error(`GitHub PUT failed: Status ${putResponse.status}.`);
+                    }
+
+                    console.log("✅ Session saved successfully to GitHub.");
+                    showTempMessage("✅ Đã lưu kết quả phiên chơi lên GitHub.", "success");
+                    setIsSessionSaved(true); 
+
+                } catch (error) {
+                    console.error("❌ Lỗi lưu session lên GitHub:", error);
+                    showTempMessage(`❌ Lỗi lưu trữ GitHub: ${error.message}`, "error", 7000);
+                }
+            }, [isSessionSaved, createSessionData, GITHUB_API_URL, GITHUB_TOKEN, showTempMessage]);
+            // --------------------------------------------------------------------------------------
+            // --- KẾT THÚC HÀM LƯU SESSION MỚI ---
+            // --------------------------------------------------------------------------------------
 
           // Trigger tự động lưu (background)
           useEffect(() => {
@@ -267,7 +339,7 @@
               
               // Loại bỏ việc lưu khi reset giữa chừng
               
-          }, [gameEnded, isSessionSaved]);
+          }, [gameEnded, isSessionSaved, saveSessionAutomatically]);
           
           // --- KẾT THÚC LOGIC LƯU ---
 
