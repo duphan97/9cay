@@ -64,6 +64,23 @@
         ];
         // END DANH SÁCH TÊN
 
+        // --- BASE64 AN TOÀN CHO UNICODE (ĐÃ SỬA LỖI btoa) ---
+        // Hàm này chuyển đổi Unicode string sang Base64
+        const unicodeToB64 = (str) => btoa(
+            encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => 
+                String.fromCharCode('0x' + p1)
+            )
+        );
+
+        // Hàm này chuyển đổi Base64 string trở lại thành Unicode
+        const b64ToUnicode = (str) => decodeURIComponent(
+            Array.prototype.map.call(atob(str), (c) => 
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            ).join('')
+        );
+        // --- END FIX ---
+
+
         // --------------------------------------------------------------------------------------
         // --- GITHUB CONSTANTS (BẮT BUỘC ĐIỀN) ---
         // !!! THAY THẾ CHUỖI NÀY BẰNG TOKEN CỦA BẠN (Đã chia 2 phần)
@@ -275,8 +292,8 @@
                   const fileData = await getResponse.json();
                   currentSha = fileData.sha;
                   
-                  // Fix: Kiểm tra nội dung rỗng trước khi parse
-                  const content = atob(fileData.content);
+                  // Fix: SỬ DỤNG HÀM AN TOÀN KHI DECODE
+                  const content = b64ToUnicode(fileData.content); 
                   
                   if (content) {
                       try {
@@ -292,6 +309,7 @@
               } else if (getResponse.status === 404) {
                   console.log("File data/session_history.json chưa tồn tại. Sẽ tạo mới.");
                   existingHistory = []; // Bắt đầu với mảng rỗng
+                  currentSha = null; // Đảm bảo SHA là null khi tạo mới
               } else {
                    console.error("❌ Lỗi khi GET file:", getResponse.status);
                    return; // Dừng nếu GET thất bại vì lý do khác (vd: token sai)
@@ -299,23 +317,29 @@
               
               // 3. Chuẩn bị nội dung mới
               const updatedHistory = [newSessionEntry, ...existingHistory]; // Thêm mới lên đầu
-              const newContent = btoa(JSON.stringify(updatedHistory, null, 2));
+              // LỖI XẢY RA Ở ĐÂY: SỬ DỤNG HÀM AN TOÀN KHI ENCODE
+              const newContent = unicodeToB64(JSON.stringify(updatedHistory, null, 2));
 
               // 4. Commit lên GitHub
               const commitMessage = `Auto save session: ${sessionData.roundsPlayed} rounds completed.`;
               
               try {
+                  const putBody = {
+                      message: commitMessage,
+                      content: newContent,
+                  };
+                  // Thêm SHA chỉ khi đang cập nhật
+                  if (currentSha) {
+                      putBody.sha = currentSha;
+                  }
+                  
                   const putResponse = await fetch(GITHUB_API_URL, {
                       method: 'PUT',
                       headers: {
                           'Authorization': `token ${GITHUB_TOKEN}`,
                           'Content-Type': 'application/json',
                       },
-                      body: JSON.stringify({
-                          message: commitMessage,
-                          content: newContent,
-                          sha: currentSha // Chỉ thêm sha nếu đang cập nhật (currentSha != null)
-                      }),
+                      body: JSON.stringify(putBody),
                   });
 
                   if (putResponse.ok) {
