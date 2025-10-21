@@ -459,9 +459,9 @@
             setTotalRounds(roundsPlayedSinceLastSet); 
             
             // 2. Play game over audio (passing 0 to playRoundEndAudio)
-            playRoundEndAudio(0);
-            setModal({ type: null, data: null });
-
+			playAudio('gameover.mp3');
+			setModal({ type: null, data: null });
+            showTempMessage("💰Nhớ banking sớm nhé các anh!", "info", 2000); 
         };
 
         const confirmSettle = () => {
@@ -1131,6 +1131,7 @@
 	  
 </body>
 </html>
+
 
 
 
