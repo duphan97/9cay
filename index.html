@@ -1,4 +1,58 @@
-<script type="text/babel">
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎯 Binh 9 cây</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Dùng 1 animation chung cho pulse, màu sắc dùng tailwind */
+    @keyframes pulse-base {0%,100%{opacity:1}50%{opacity:0.7}}
+    .pulse-effect{animation:pulse-base 1s infinite}
+    
+    /* CẬP NHẬT HIỆU ỨNG GLOW CỰC SẶC SỠ cho người thắng */
+    @keyframes winner-glow-enhanced {
+      0%,100%{background:#e6fffa;border: 3px solid #047857;box-shadow:0 0 15px rgba(4, 120, 87, 0.8)} /* Xanh nhạt, viền xanh đậm */
+      50%{background:#6ee7b7;border: 3px solid #065f46;box-shadow:0 0 25px rgba(6, 95, 70, 0.9)} /* Xanh sáng hơn, viền đậm hơn */
+    }
+    .winner-glow{animation:winner-glow-enhanced 1.2s infinite}
+    /* END CẬP NHẬT HIỆU ỨNG */
+    
+    /* Tên người chơi trong lịch sử: In đậm, màu đen */
+    .history-player-name {
+        font-weight: 700; 
+        color: #1f2937; 
+        /* Flex grow để chiếm hết không gian còn lại */
+        flex-grow: 1; 
+        overflow: hidden; /* Tránh tràn khi tên quá dài */
+        text-overflow: ellipsis; 
+        white-space: nowrap;
+    }
+    
+    /* Container cho mỗi dòng lịch sử để căn đều bằng flexbox */
+    .history-item-line {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-top: 2px;
+    }
+    
+    /* Cố định chiều rộng cho điểm để căn đều tuyệt đối */
+    .delta-score {
+        display: inline-block;
+        width: 40px; /* Độ rộng cố định, đủ cho "+99" */
+        text-align: right;
+        font-weight: 600; /* in đậm */
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+  <div id="root" class="w-full max-w-md"></div>
+
+	<script type="text/babel">
 		const { useState, useEffect, useMemo } = React;
         
         // DANH SÁCH TÊN CỐ ĐỊNH 
@@ -74,7 +128,7 @@
           // State quản lý nhạc nền Double 
           const [doubleMusic, setDoubleMusic] = useState(null); 
 		  
-        // --- LOGIC AUDIO ĐÃ CẬP NHẬT (CHỈ PHÁT 1 FILE) ---
+        // --- LOGIC AUDIO ĐÃ ĐIỀU CHỈNH ĐỂ CHỈ PHÁT 1 FILE ---
         
         const slugifyPlayerName = (name) => {
             return name
@@ -94,7 +148,7 @@
             return audio; 
         };
         
-        // CẬP NHẬT HÀM: Chỉ phát 1 file duy nhất
+        // CẬP NHẬT HÀM: Chỉ phát 1 file duy nhất (đã fix delay)
         const playWinnerAudio = (winnerName, isDouble) => {
             const winnerSlug = slugifyPlayerName(winnerName);
             let audioFileName = `${winnerSlug}.mp3`; // Tên file mặc định (văn thường)
@@ -108,7 +162,7 @@
             playAudio(audioFileName);
         };
         
-        // HÀM BỊ LOẠI BỎ logic delay cũ, CHỈ PHÁT audio kết thúc game
+        // ĐIỀU CHỈNH HÀM: Chỉ phát audio kết thúc game (Game Over)
         const playRoundEndAudio = (remainingRounds) => {
             let fileToPlay = null;
             // Chỉ phát khi game thực sự kết thúc (<= 0)
@@ -116,14 +170,13 @@
                  fileToPlay = 'gameover.mp3';
             }
             
-            // DÙNG setTimeout NGẮN hơn (hoặc bỏ) để tránh trùng lặp
+            // Giảm delay so với ban đầu 3500ms
             if (fileToPlay) {
-                // Giảm delay so với ban đầu 3500ms
-                setTimeout(() => playAudio(fileToPlay), 1500); 
+                setTimeout(() => playAudio(fileToPlay), 1500); // 1.5 giây để tránh trùng lặp với audio người thắng
             }
         };
         
-        // LOGIC QUẢN LÝ NHẠC NỀN DOUBLE
+        // LOGIC QUẢN LÝ NHẠC NỀN DOUBLE (Giữ nguyên)
         useEffect(() => {
             if (doubleNext) {
                 if (!doubleMusic) {
@@ -149,7 +202,7 @@
             };
         }, [doubleNext, doubleMusic]);
         
-        // --- KẾT THÚC LOGIC AUDIO ĐÃ CẬP NHẬT ---
+        // --- KẾT THÚC LOGIC AUDIO ĐÃ ĐIỀU CHỈNH ---
 
 
 		  // Tính toán trạng thái vòng đấu
@@ -1067,3 +1120,6 @@
 		const root = ReactDOM.createRoot(document.getElementById("root"));
 		root.render(<App />);
 	  </script>
+	  
+</body>
+</html>
