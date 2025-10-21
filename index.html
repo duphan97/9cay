@@ -162,20 +162,31 @@
             playAudio(audioFileName);
         };
         
-        // ĐIỀU CHỈNH HÀM: Chỉ phát audio kết thúc game (Game Over)
+        // ĐIỀU CHỈNH HÀM: Phục hồi âm thanh báo 3, 2, 1 ván
         const playRoundEndAudio = (remainingRounds) => {
             let fileToPlay = null;
-            // Chỉ phát khi game thực sự kết thúc (<= 0)
-            if (remainingRounds <= 0) {
+            
+            // 1. Kiểm tra các mốc quan trọng (3, 2, 1)
+            if (remainingRounds === 3) {
+                 fileToPlay = '3.mp3';
+            } else if (remainingRounds === 2) {
+                 fileToPlay = '2.mp3';
+            } else if (remainingRounds === 1) {
+                 fileToPlay = '1.mp3';
+            } 
+            
+            // 2. Kiểm tra Game Over (0)
+            else if (remainingRounds <= 0) {
                  fileToPlay = 'gameover.mp3';
             }
             
-            // Giảm delay so với ban đầu 3500ms
+            // Phát file đã xác định (nếu có), sử dụng delay ngắn 1.5s
+            // để tránh trùng lặp với audio người thắng vừa phát xong.
             if (fileToPlay) {
-                setTimeout(() => playAudio(fileToPlay), 1500); // 1.5 giây để tránh trùng lặp với audio người thắng
+                setTimeout(() => playAudio(fileToPlay), 1500); 
             }
         };
-        
+                
         // LOGIC QUẢN LÝ NHẠC NỀN DOUBLE (Giữ nguyên)
         useEffect(() => {
             if (doubleNext) {
