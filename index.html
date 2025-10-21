@@ -281,8 +281,21 @@
                   const fileData = await getResponse.json();
                   currentSha = fileData.sha;
                   
-                  // Fix: Kiểm tra nội dung rỗng trước khi parse
-                  const content = atob(fileData.content);
+                  // Fix Lỗi Base64: Loại bỏ các ký tự không hợp lệ (như xuống dòng, khoảng trắng) trước khi giải mã
+                  const base64Content = fileData.content ? fileData.content.replace(/\s/g, '') : null;
+                  
+                  let content = null;
+                  
+                  if (base64Content) {
+                      try {
+                          // Cố gắng giải mã Base64
+                          content = atob(base64Content); 
+                      } catch (e) {
+                           console.error("❌ Lỗi giải mã Base64 (atob). File có thể bị hỏng:", e);
+                           showTempMessage("⚠️ Lỗi dữ liệu cũ (Base64). Đã bắt đầu phiên mới.", "warning", 5000);
+                           // Nếu lỗi, tiếp tục bằng cách coi file cũ là rỗng
+                      }
+                  }
                   
                   if (content) {
                       try {
@@ -290,6 +303,7 @@
                       } catch (e) {
                            console.error("❌ Lỗi parse JSON file đã có. Bắt đầu phiên mới:", e);
                            existingHistory = [];
+                           showTempMessage("⚠️ Lỗi Parse JSON file. Đã bắt đầu phiên mới.", "warning", 5000);
                       }
                   } else {
                       existingHistory = [];
@@ -343,11 +357,10 @@
               }
           };
 
-          // Trigger tự động lưu (background) - ĐÃ LOẠI BỎ TIMEOUT
+          // Trigger tự động lưu (background) - KHÔNG DÙNG TIMEOUT NỮA
           useEffect(() => {
               // CHỈ TRIGGER khi game ENDED, CHƯA được lưu, và KHÔNG trong quá trình lưu.
               if (gameEnded && !isSessionSaved && !isSaving) { 
-                  // GỌI HÀM LƯU NGAY LẬP TỨC ĐỂ KHẮC PHỤC LỖI MOBILE
                   saveSessionAutomatically();
               }
               
