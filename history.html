@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔒 Lịch Sử Tổng Hợp & BXH</title>
+    <title>📜 Lịch Sử Tổng Hợp & BXH</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -28,10 +28,6 @@
             overflow: hidden; 
             text-overflow: ellipsis; 
             white-space: nowrap;
-            margin-right: 8px; /* Khoảng cách sau tên */
-            display: flex; /* Dùng flex để chứa (Dừng) */
-            align-items: baseline;
-            justify-content: flex-start;
         }
     </style>
 </head>
@@ -41,218 +37,231 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --------------------------------------------------------------------------------------
-        // --- GITHUB CONSTANTS (SỬ DỤNG PHƯƠNG PHÁP CHIA TOKEN ĐỂ LÁCH MÁY QUÉT) ---
-        // !!! BẮT BUỘC THAY THẾ CHUỖI NÀY BẰNG TOKEN MỚI CỦA BẠN (Đã chia 2 phần)
-        const GITHUB_TOKEN_PART1 = 'github_pat_11AHU2I4Q0eTQynszWYAnj_'; 
-        const GITHUB_TOKEN_PART2 = 'g3icOcB6W3He3EFtkB3rEuvAIst0GQQf50IaXXPDllERWI7ZWWJF0pB4QeI'; 
-
-        // Nối lại token khi chạy
-        const GITHUB_TOKEN = GITHUB_TOKEN_PART1 + GITHUB_TOKEN_PART2; 
-        
+        // --- CẤU HÌNH GITHUB (PHẢI KHỚP VỚI index.html) ---
         const REPO_OWNER = 'duphan97';
         const REPO_NAME = '9cay';
         const DATA_FILE_PATH = 'data/session_history.json'; 
-
+        // Endpoint để lấy nội dung file JSON đã được Base64 encode
         const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
-        // --------------------------------------------------------------------------------------
+        // --- END CẤU HÌNH GITHUB ---
 
-        const HistoryApp = () => {
-            const [sessions, setSessions] = useState(null);
-            const [message, setMessage] = useState("");
-            const [messageType, setMessageType] = useState("info");
-            const [isAuthenticated, setIsAuthenticated] = useState(false); // BỎ QUA XÁC THỰC VÌ DÙNG TOKEN TRONG CODE
-            const [isInitialLoad, setIsInitialLoad] = useState(true);
-
-            // TÍNH TOÁN BẢNG XẾP HẠNG
-            const leaderboard = useMemo(() => {
-                if (!sessions || sessions.length === 0) return [];
-
-                const finalScores = {};
-                sessions.forEach(session => {
-                    session.finalResults.forEach(player => {
-                        finalScores[player.name] = (finalScores[player.name] || 0) + player.score;
-                    });
-                });
-
-                return Object.entries(finalScores)
-                    .map(([name, totalScore]) => ({ name, totalScore }))
-                    .sort((a, b) => b.totalScore - a.totalScore); // Giảm dần
-            }, [sessions]);
-
-            // Hàm hiển thị thông báo tạm thời
-            const showTempMessage = (text, type = "info", duration = 3000) => {
-                setMessage(text);
-                setMessageType(type);
-                setTimeout(() => { setMessage(""); }, duration);
-            };
+        // --- BASE64 AN TOÀN CHO UNICODE (ĐÃ SỬA LỖI btoa) ---
+        // Hàm này chuyển đổi Base64 string trở lại thành Unicode
+        const b64ToUnicode = (str) => decodeURIComponent(
+            Array.prototype.map.call(atob(str), (c) => 
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            ).join('')
+        );
+        // --- END FIX ---
 
 
-            const fetchHistory = async () => {
-                setIsInitialLoad(false);
-                setMessage("Đang tải lịch sử từ GitHub...", "info");
+        // Hàm Tải lịch sử trực tiếp từ GitHub
+        const fetchHistoryFromGitHub = async () => {
+            const response = await fetch(GITHUB_API_URL, {
+                method: 'GET',
+                headers: {
+                    // Yêu cầu response chứa dữ liệu Base64 encoded
+                    'Accept': 'application/vnd.github.v3+json', 
+                },
+            });
 
-                if (GITHUB_TOKEN_PART1.includes('PART_1_OF_YOUR_TOKEN')) {
-                    setMessage("🛑 Không thể tải: Token GitHub chưa được thay thế!", "error");
-                    return;
-                }
-
-                try {
-                    // Sử dụng GitHub Content API trực tiếp
-                    const response = await fetch(GITHUB_API_URL, {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': `token ${GITHUB_TOKEN}`,
-                            'Accept': 'application/vnd.github.v3.raw', // Yêu cầu nội dung RAW (JSON)
-                        },
-                    });
-
-                    if (response.status === 404) {
-                        setMessage("⚠️ Chưa có lịch sử nào được ghi lại.", "warning");
-                        setSessions([]);
-                        return;
-                    }
-                    
-                    if (!response.ok) {
-                        throw new Error(`Lỗi tải lịch sử từ GitHub: ${response.status}`);
-                    }
-                    
-                    // Content là RAW JSON, không cần atob()
-                    const data = await response.json(); 
-                    
-                    // Lọc để đảm bảo data là một mảng
-                    if (Array.isArray(data)) {
-                        setSessions(data.reverse()); // Hiển thị session mới nhất lên đầu
-                    } else {
-                        // Trường hợp file tồn tại nhưng không phải mảng (ví dụ: file rỗng)
-                         setSessions([]);
-                    }
-                    
-                    setMessage("✅ Đã tải lịch sử thành công.", "success");
-
-                } catch (error) {
-                    console.error("Lỗi khi tải lịch sử:", error);
-                    setMessage(`❌ Lỗi tải: ${error.message || error}. Vui lòng kiểm tra console.`, "error", 5000);
-                    setSessions([]);
-                }
-            };
-            
-            // Tải lịch sử khi component mount
-            useEffect(() => {
-                fetchHistory();
-            }, []);
-            
-            // BỎ QUA LOGIC XÁC THỰC (Token nằm trong code)
-            useEffect(() => {
-                // Tự động coi là đã xác thực vì token nằm trong mã nguồn
-                setIsAuthenticated(true);
-            }, []);
-
-            // Hiển thị giao diện
-            if (!isAuthenticated) {
-                // Sẽ không bao giờ xảy ra vì isAuthenticated=true ngay lập tức
-                return <div className="text-center font-bold">Đang tải...</div>
+            if (response.status === 404) {
+                return []; // File not found (chưa có session nào), trả về mảng rỗng
+            }
+            if (!response.ok) {
+                throw new Error(`Lỗi tải dữ liệu từ GitHub: ${response.statusText}`);
             }
 
-            if (isInitialLoad) {
+            const fileData = await response.json();
+            
+            // 1. Decode Base64 (phải dùng hàm an toàn vì có ký tự tiếng Việt)
+            const encodedContent = fileData.content;
+            let sessionsData;
+            try {
+                const jsonString = b64ToUnicode(encodedContent); 
+                // 2. Parse JSON
+                sessionsData = JSON.parse(jsonString);
+            } catch (e) {
+                console.error("Lỗi Decode/Parse JSON:", e);
+                throw new Error("Dữ liệu lịch sử không hợp lệ (lỗi Decode/JSON).");
+            }
+            
+            // Dữ liệu được lưu newest first (index 0) nên chúng ta trả về như vậy.
+            return sessionsData; 
+        };
+
+        // Hàm tính tổng điểm toàn thời gian (All-Time Score)
+        const calculateAllTimeScores = (sessions) => {
+            if (!sessions || sessions.length === 0) return [];
+            
+            const scoresMap = {};
+
+            sessions.forEach(session => {
+                // Đảm bảo session.finalResults tồn tại và là mảng
+                if (Array.isArray(session.finalResults)) {
+                    session.finalResults.forEach(player => {
+                        const { name, score } = player;
+                        scoresMap[name] = (scoresMap[name] || 0) + score;
+                    });
+                }
+            });
+
+            const scoreboard = Object.keys(scoresMap).map(name => ({
+                name,
+                totalScore: scoresMap[name]
+            })).sort((a, b) => b.totalScore - a.totalScore); 
+
+            return scoreboard;
+        };
+
+        // Helper cho hiển thị thời gian
+        const formatSessionDate = (isoString) => {
+            try {
+                const date = new Date(isoString);
+                return date.toLocaleDateString('vi-VN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch {
+                return isoString ? isoString.substring(0, 10) : 'N/A';
+            }
+        };
+
+
+        function HistoryApp() {
+            const [sessions, setSessions] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            
+            // Không cần các state xác thực (isAuthenticated, password, authError) nữa
+
+            // 1. Tải lịch sử
+            useEffect(() => {
+                setLoading(true);
+                fetchHistoryFromGitHub()
+                    .then(data => {
+                        setSessions(data);
+                        setError(null);
+                    })
+                    .catch(err => {
+                        console.error("Lỗi tải lịch sử:", err.message);
+                        setError(err.message);
+                    })
+                    .finally(() => setLoading(false));
+            }, []);
+
+            const allTimeScores = useMemo(() => calculateAllTimeScores(sessions), [sessions]);
+
+            // --- Giao diện Tải/Lỗi ---
+            if (loading) {
                 return (
-                     <div className="flex justify-center items-center h-40">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mr-3"></div>
-                        <span className="text-lg text-gray-600">Đang kết nối GitHub và tải lịch sử...</span>
+                    <div className="text-center p-8">
+                        <p className="font-semibold mb-4 text-blue-600">Đang tải lịch sử tổng hợp...</p>
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"></div>
                     </div>
                 );
             }
 
+            if (error) {
+                return (
+                    <div className="text-center p-8 bg-red-100 border border-red-400 rounded-lg">
+                        <p className="font-bold text-red-600 mb-2">❌ Lỗi Tải Lịch Sử</p>
+                        <p className="text-sm text-gray-700">{error}</p>
+                    </div>
+                );
+            }
+
+            if (!sessions || sessions.length === 0) {
+                return (
+                    <div className="text-center p-8 bg-yellow-100 border border-yellow-400 rounded-lg">
+                        <p className="font-bold text-yellow-700">📜 Chưa Có Dữ Liệu Lịch Sử</p>
+                        <p className="text-sm text-gray-600 mt-2">Hãy hoàn thành một phiên chơi để hệ thống tự động lưu.</p>
+                        <a href="index.html" className="inline-block bg-blue-500 text-white px-4 py-2 rounded font-bold hover:bg-blue-600 transition mt-4">
+                            ↩️ Quay lại Game
+                        </a>
+                    </div>
+                );
+            }
+
+            // --- Giao diện Lịch sử & BXH (Đã giữ nguyên từ code bạn cung cấp) ---
             return (
                 <div>
-                    <h1 className="text-3xl font-bold text-center mb-6 text-blue-600">🏆 Lịch Sử & Bảng Xếp Hạng Tổng Hợp</h1>
+                    <h1 className="text-3xl font-bold text-center text-purple-600 mb-6">📜 Lịch Sử & Bảng Xếp Hạng Tổng Hợp ({sessions.length} Phiên)</h1>
                     
-                    {/* Thông báo */}
-                    {message && (
-                        <div className={`px-4 py-2 rounded-lg text-center mb-4 font-semibold ${
-                            messageType === "warning" ? "bg-yellow-100 text-yellow-800"
-                            : messageType === "error" ? "bg-red-100 text-red-800"
-                            : "bg-blue-100 text-blue-800"
-                        }`}>
-                            {message}
+                    {/* BẢNG XẾP HẠNG TỔNG ĐIỂM TOÀN THỜI GIAN */}
+                    <div className="mb-8 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-md">
+                        <h2 className="text-xl font-bold text-blue-800 mb-3 text-center">🏆 Bảng Xếp Hạng Tổng Điểm Toàn Thời Gian</h2>
+                        <div className="space-y-2">
+                            {allTimeScores.map((p, index) => (
+                                <div key={p.name} className={`flex justify-between items-center p-2 rounded ${index < 3 ? 'bg-yellow-100 font-extrabold border-l-4 border-yellow-500' : 'bg-white border'}`}>
+                                    <span className="text-lg">
+                                        {index === 0 && '🥇'}
+                                        {index === 1 && '🥈'}
+                                        {index === 2 && '🥉'}
+                                        {index >= 3 && `${index + 1}. `}
+                                        {p.name}
+                                    </span>
+                                    <span className={`text-xl font-bold ${p.totalScore >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                    )}
-
-                    {/* Bảng Xếp Hạng */}
-                    <div className="mb-8 p-4 border rounded-lg shadow-inner bg-gray-50">
-                        <h2 className="text-xl font-bold mb-3 text-center text-green-600">🥇 Bảng Xếp Hạng Tổng (All Time)</h2>
-                        <ul className="space-y-1">
-                            {leaderboard.length === 0 ? (
-                                <p className="text-center text-gray-500">Chưa có dữ liệu tính điểm.</p>
-                            ) : (
-                                leaderboard.map((player, index) => (
-                                    <li key={player.name} className="flex justify-between items-center bg-white p-2 rounded-md shadow-sm border-l-4 border-green-500">
-                                        <div className="flex items-center">
-                                            <span className="w-5 font-bold mr-2 text-lg text-gray-700">
-                                                {index === 0 ? '👑' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
-                                            </span>
-                                            <span className="font-semibold text-lg">{player.name}</span>
-                                        </div>
-                                        <span className={`text-xl font-extrabold ${player.totalScore > 0 ? 'text-green-700' : player.totalScore < 0 ? 'text-red-700' : 'text-gray-700'}`}>
-                                            {player.totalScore > 0 ? `+${player.totalScore}` : player.totalScore}
-                                        </span>
-                                    </li>
-                                ))
-                            )}
-                        </ul>
                     </div>
 
-                    {/* Lịch Sử Các Phiên Chơi */}
-                    <h2 className="text-xl font-bold mb-4 text-center text-red-600">📜 Chi Tiết Các Phiên Chơi</h2>
+                    <h2 className="text-2xl font-bold text-center text-gray-700 mb-4 border-b pb-2">📋 Chi Tiết Các Phiên</h2>
+                    
+                    {/* DANH SÁCH CHI TIẾT CÁC PHIÊN */}
                     <div className="space-y-6">
-                        {sessions && sessions.map((session, index) => {
-                            const isCompleted = session.gameStatus === "COMPLETED";
-                            const sessionDate = new Date(session.timestamp).toLocaleString('vi-VN', { 
-                                day: '2-digit', 
-                                month: '2-digit', 
-                                year: 'numeric', 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            });
-
-                            // Tính tổng số điểm của session để quyết định màu nền
-                            const sessionTotalScore = session.finalResults.reduce((sum, p) => sum + p.score, 0);
+                        {sessions.map((session, index) => {
+                            
+                            // Sắp xếp người chơi theo điểm số cuối cùng
+                            const sortedFinalResults = session.finalResults ? session.finalResults.sort((a, b) => b.score - a.score) : [];
+                            
+                            // Xác định trạng thái Game Status (Dựa trên roundsPlayed và totalRoundsSet)
+                            let gameStatus = 'Reset giữa chừng';
+                            if (session.roundsPlayed > 0) {
+                                if (session.totalRoundsSet === null || session.roundsPlayed >= session.totalRoundsSet) {
+                                    gameStatus = 'Hoàn thành';
+                                } else {
+                                    gameStatus = 'Kết thúc sớm';
+                                }
+                            } else if (session.finalResults && session.finalResults.length > 0) {
+                                gameStatus = 'Tính tiền ngay';
+                            }
 
                             return (
-                                <div 
-                                    key={session.sessionId} 
-                                    className={`p-4 rounded-lg shadow-md border-t-8 ${
-                                        isCompleted ? (sessionTotalScore > 0 ? 'border-green-500 bg-white' : 'border-blue-500 bg-white') 
-                                                    : 'border-gray-500 bg-gray-100'
-                                    }`}
-                                >
-                                    <h3 className="text-lg font-bold mb-2 flex justify-between">
-                                        <span>
-                                            Phiên #{sessions.length - index} 
-                                            <span className={`ml-2 text-sm font-normal ${isCompleted ? 'text-green-600' : 'text-gray-600'}`}>
-                                                ({isCompleted ? "Đã hoàn thành" : "Reset giữa chừng"})
-                                            </span>
+                                <div key={index} className="border border-gray-300 rounded-xl p-4 bg-white shadow-md hover:shadow-lg transition">
+                                    <div className="flex justify-between items-center mb-2 border-b pb-2">
+                                        <h2 className="text-lg font-bold text-gray-800">
+                                            {/* Dữ liệu lưu newest first, nên session.length - index sẽ ra số thứ tự đúng (1 là newest) */}
+                                            Phiên #{sessions.length - index}
+                                        </h2>
+                                        <span className={`text-sm font-bold px-3 py-1 rounded-full ${gameStatus === 'Hoàn thành' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {session.roundsPlayed} Ván ({gameStatus})
                                         </span>
-                                        <span className="text-sm font-normal text-gray-500">{sessionDate}</span>
-                                    </h3>
+                                    </div>
+                                    
                                     <p className="text-sm text-gray-600 mb-3">
-                                        Tổng ván chơi: <span className="font-semibold">{session.roundsPlayed}</span> 
-                                        {session.totalRoundsSet && ` / ${session.totalRoundsSet}`}
+                                        🗓️ <span className="font-medium">{formatSessionDate(session.timestamp)}</span>
                                     </p>
-
-                                    <div className="space-y-1">
+                                    
+                                    {/* Danh sách người chơi và điểm cuối */}
+                                    <div className="mt-2 space-y-1 text-sm pt-2 border-t"> 
                                         {
-                                            session.finalResults.sort((a, b) => b.score - a.score).map(p => (
-                                                <div key={p.name} className="flex justify-between items-center py-1 text-sm border-b border-gray-200 last:border-b-0">
-                                                    
-                                                    {/* CỘT 1: Tên người chơi (đã chỉnh sửa) */}
-                                                    <div className="history-player-name">
-                                                        {p.name}:
-                                                        {p.status === 'Kicked' && <span className="text-xs text-gray-500 ml-1">(Dừng)</span>}
+                                            sortedFinalResults
+                                                .map(p => (
+                                                <div key={p.name} className="flex justify-between">
+                                                    {/* CỘT 1: Tên người chơi */}
+                                                    <div className={`history-player-name ${p.status === 'Kicked' ? 'text-gray-500 italic text-sm' : 'text-gray-800 text-base'}`}>
+                                                        {p.name} {p.status === 'Kicked' && <span>(Dừng)</span>}
                                                     </div>
                                                     
-                                                    {/* CỘT 2: Điểm cuối (đã chỉnh sửa) */}
-                                                    <span className={`final-score ${p.score > 0 ? 'text-green-600' : p.score < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                                                    {/* CỘT 2: Điểm cuối */}
+                                                    <span className={`final-score ${p.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                         {p.score > 0 ? `+${p.score}` : p.score}
                                                     </span>
                                                 </div>
