@@ -30,7 +30,6 @@
         overflow: hidden; /* Tránh tràn khi tên quá dài */
         text-overflow: ellipsis; 
         white-space: nowrap;
-        margin-right: 4px; /* Khoảng cách nhỏ trước dấu : */
     }
     
     /* Container cho mỗi dòng lịch sử để căn đều bằng flexbox */
@@ -56,9 +55,18 @@
 	<script type="text/babel">
 		const { useState, useEffect, useMemo } = React;
         
+        // DANH SÁCH TÊN CỐ ĐỊNH 
+        const FIXED_PLAYER_NAMES = [
+            "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
+            "Dự Phan", "Định Ngô", "Đông Lê", 
+            "Khánh Đỗ", "Minh Anh", "Nhân Trần", 
+            "Quý Huỳnh", "Tuấn Nguyễn"
+        ];
+        // END DANH SÁCH TÊN
+
         // --------------------------------------------------------------------------------------
-        // --- GITHUB CONSTANTS (SỬ DỤNG PHƯƠNG PHÁP CHIA TOKEN ĐỂ LÁCH MÁY QUÉT) ---
-        // !!! BẮT BUỘC THAY THẾ CHUỖI NÀY BẰNG TOKEN MỚI CỦA BẠN (Đã chia 2 phần)
+        // --- GITHUB CONSTANTS (BẮT BUỘC ĐIỀN) ---
+        // !!! THAY THẾ CHUỖI NÀY BẰNG TOKEN CỦA BẠN (Đã chia 2 phần)
         const GITHUB_TOKEN_PART1 = 'github_pat_11AHU2I4Q0eTQynszWYAnj_'; 
         const GITHUB_TOKEN_PART2 = 'g3icOcB6W3He3EFtkB3rEuvAIst0GQQf50IaXXPDllERWI7ZWWJF0pB4QeI'; 
 
@@ -71,15 +79,6 @@
 
         const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
         // --------------------------------------------------------------------------------------
-        
-        // DANH SÁCH TÊN CỐ ĐỊNH 
-        const FIXED_PLAYER_NAMES = [
-            "Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
-            "Dự Phan", "Định Ngô", "Đông Lê", 
-            "Khánh Đỗ", "Minh Anh", "Nhân Trần", 
-            "Quý Huỳnh", "Tuấn Nguyễn"
-        ];
-        // END DANH SÁCH TÊN
 
 		function App() {
 		  // Dữ liệu chính
@@ -94,6 +93,8 @@
 
 		  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
 		  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem("isSessionSaved")) || false);
+          // TRẠNG THÁI MỚI: Theo dõi quá trình lưu
+          const [isSaving, setIsSaving] = useState(false); 
 
 		  // Trạng thái phiên hiện tại
           const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
@@ -158,7 +159,7 @@
             } else if (remainingRounds === 1) {
                  fileToPlay = '1left.mp3';
             } else if (remainingRounds <= 0) {
-                 fileToPlay = 'gameover.mp3'; // ĐÃ ĐỔI TỪ .wav SANG .mp3
+                 fileToPlay = 'gameover.mp3';
             }
             
             if (fileToPlay) {
@@ -211,153 +212,146 @@
 			[totalRounds, effectiveRemainingRounds]
 		  );
           
-          // --- LOGIC LƯU LỊCH SỬ TRỰC TIẾP GITHUB (PUT) ---
+          // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
           
-          // Hàm tạo đối tượng dữ liệu phiên chơi 
+          // HÀM ĐƯỢC CẬP NHẬT: Tạo đối tượng dữ liệu phiên chơi 
           const createSessionData = () => {
-              // Lấy tất cả người chơi, sắp xếp người đang chơi lên trước
+              // Lấy TẤT CẢ người chơi (đang chơi và đã dừng)
               const allFinalPlayers = [
                   ...players.map(p => ({ 
                       name: p.name, 
                       score: p.score, 
-                      status: 'Playing' 
+                      status: 'Playing' // Người đang chơi
                   })), 
                   ...kickedPlayers.map(p => ({ 
                       name: p.name, 
                       score: p.score, 
-                      status: 'Kicked' 
+                      status: 'Kicked' // Người đã dừng
                   }))
               ];
               
               const sessionData = {
-                  sessionId: `Session-${new Date().toISOString()}`,
-                  timestamp: new Date().toISOString(), // LƯU THỜI GIAN
+                  // Sử dụng timestamp làm ID phiên
+                  sessionId: `Session-${new Date().toISOString()}`, 
+                  timestamp: new Date().toISOString(), 
                   totalRoundsSet: totalRounds,
                   roundsPlayed: history.filter(h => h.type === "record").length,
-                  gameStatus: gameEnded ? "COMPLETED" : "RESET_MID_GAME", 
                   finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
               };
+              
               return sessionData;
           }
 
-          // Hàm gọi GitHub API để lưu trực tiếp
+          // HÀM ĐƯỢC CẬP NHẬT: Xử lý lưu tự động với token GitHub
           const saveSessionAutomatically = async () => {
               if (isSessionSaved) {
                   console.log("Session already saved, skipping automatic save.");
                   return;
               }
               
-              if (GITHUB_TOKEN_PART1.includes('PART_1_OF_YOUR_TOKEN')) {
-                  console.error("🛑 Không thể lưu: Token GitHub chưa được thay thế!");
-                  return;
-              }
+              setIsSaving(true); // BẮT ĐẦU QUÁ TRÌNH LƯU
               
-	// Hàm tạo đối tượng dữ liệu phiên chơi 
-			  const createSessionData = () => {
-				  // Lấy TẤT CẢ người chơi (đang chơi và đã dừng)
-				  const allFinalPlayers = [
-					  ...players.map(p => ({ 
-						  name: p.name, 
-						  score: p.score, 
-						  status: 'Playing' // Người đang chơi
-					  })), 
-					  ...kickedPlayers.map(p => ({ 
-						  name: p.name, 
-						  score: p.score, 
-						  status: 'Kicked' // Người đã dừng
-					  }))
-				  ];
-				  
-				  const sessionData = {
-					  // Sử dụng timestamp làm ID phiên
-					  sessionId: `Session-${new Date().toISOString()}`, 
-					  timestamp: new Date().toISOString(), 
-					  totalRoundsSet: totalRounds,
-					  roundsPlayed: history.filter(h => h.type === "record").length,
-					  // Trường này đã bị loại bỏ vì không cần thiết cho mục đích lưu
-					  // gameStatus: gameEnded ? "COMPLETED" : "RESET_MID_GAME", 
-					  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
-				  };
-				  
-				  return sessionData;
-			  }
+              const sessionData = createSessionData();
+              const newSessionEntry = sessionData; // Dữ liệu phiên mới
+
               console.log("Saving game session automatically to GitHub...");
 
+              // 1. Lấy nội dung file hiện tại (để lấy SHA và dữ liệu cũ)
+              let currentSha = null;
+              let existingHistory = [];
+              let getResponse;
+
               try {
-                  // --- 1. Lấy SHA hiện tại của file (BẮT BUỘC để PUT) ---
-                  let currentSha = null;
-                  let existingHistory = [];
-                  
-                  const getResponse = await fetch(GITHUB_API_URL, {
+                  getResponse = await fetch(GITHUB_API_URL, {
                       method: 'GET',
                       headers: {
                           'Authorization': `token ${GITHUB_TOKEN}`,
                           'Accept': 'application/vnd.github.v3+json',
                       },
                   });
+              } catch (error) {
+                  console.error("❌ Lỗi mạng/API khi GET file:", error);
+                  setIsSaving(false); // Kết thúc quá trình lưu
+                  showTempMessage("❌ Lỗi mạng khi tải lịch sử cũ!", "error", 5000);
+                  return; 
+              }
 
-                  if (getResponse.ok) {
-                      const fileData = await getResponse.json();
-                      currentSha = fileData.sha;
-                      const content = atob(fileData.content);
-                      existingHistory = JSON.parse(content);
-                  } else if (getResponse.status === 404) {
-                      // Nếu file chưa tồn tại (404), SHA là null, history là mảng rỗng
-                      console.log("File does not exist, creating new file.");
-                      existingHistory = [];
+              // 2. Xử lý phản hồi GET
+              if (getResponse.ok) {
+                  const fileData = await getResponse.json();
+                  currentSha = fileData.sha;
+                  
+                  // Fix: Kiểm tra nội dung rỗng trước khi parse
+                  const content = atob(fileData.content);
+                  
+                  if (content) {
+                      try {
+                          existingHistory = JSON.parse(content);
+                      } catch (e) {
+                           console.error("❌ Lỗi parse JSON file đã có. Bắt đầu phiên mới:", e);
+                           existingHistory = [];
+                      }
                   } else {
-                      const errorText = await getResponse.text();
-                      throw new Error(`Lỗi GET file hiện tại: ${getResponse.status}. Chi tiết: ${errorText.substring(0, 100)}...`);
+                      existingHistory = [];
                   }
                   
-                  // --- 2. Chuẩn bị nội dung mới ---
-                  // Thêm session mới vào history
-                  existingHistory.push(sessionData);
-                  
-                  const newContent = JSON.stringify(existingHistory, null, 2);
-                  // Bắt buộc dùng encodeURIComponent + unescape + btoa để xử lý ký tự UTF-8
-                  const encodedContent = btoa(unescape(encodeURIComponent(newContent)));
+              } else if (getResponse.status === 404) {
+                  console.log("File data/session_history.json chưa tồn tại. Sẽ tạo mới.");
+                  existingHistory = []; // Bắt đầu với mảng rỗng
+              } else {
+                   console.error("❌ Lỗi khi GET file:", getResponse.status);
+                   setIsSaving(false); // Kết thúc quá trình lưu
+                   showTempMessage(`❌ Lỗi ${getResponse.status} khi tải lịch sử cũ!`, "error", 5000);
+                   return; // Dừng nếu GET thất bại vì lý do khác (vd: token sai)
+              }
+              
+              // 3. Chuẩn bị nội dung mới
+              const updatedHistory = [newSessionEntry, ...existingHistory]; // Thêm mới lên đầu
+              const newContent = btoa(JSON.stringify(updatedHistory, null, 2));
 
-                  // --- 3. Gửi PUT request để commit file mới ---
-                  const commitBody = {
-                      message: `[AUTO] End of game session: ${sessionData.sessionId}`,
-                      content: encodedContent,
-                      // SHA là null nếu tạo file mới (404) hoặc SHA hiện tại nếu update
-                      sha: currentSha 
-                  };
-                  
+              // 4. Commit lên GitHub
+              const commitMessage = `Auto save session: ${sessionData.roundsPlayed} rounds completed.`;
+              
+              try {
                   const putResponse = await fetch(GITHUB_API_URL, {
                       method: 'PUT',
                       headers: {
                           'Authorization': `token ${GITHUB_TOKEN}`,
                           'Content-Type': 'application/json',
                       },
-                      body: JSON.stringify(commitBody),
+                      body: JSON.stringify({
+                          message: commitMessage,
+                          content: newContent,
+                          sha: currentSha // Chỉ thêm sha nếu đang cập nhật (currentSha != null)
+                      }),
                   });
 
                   if (putResponse.ok) {
                       console.log("✅ Session saved successfully to GitHub.");
                       setIsSessionSaved(true); // Đánh dấu đã lưu thành công
+                      showTempMessage("✅ Đã lưu kết quả thành công lên GitHub!", "success", 4000);
                   } else {
                       const result = await putResponse.json();
                       console.error("❌ Failed to save session. Status:", putResponse.status, "Details:", result);
-                      // Không set isSessionSaved=true để user có thể reset và thử lại
+                      showTempMessage(`❌ Lỗi ${putResponse.status} khi lưu lên GitHub.`, "error", 5000);
                   }
               } catch (error) {
-                  console.error("❌ Error during GitHub save:", error);
+                  console.error("❌ Network/API error during session save:", error);
+                  showTempMessage("❌ Lỗi mạng khi lưu lên GitHub!", "error", 5000);
+              } finally {
+                  setIsSaving(false); // Dù thành công hay thất bại, kết thúc quá trình lưu
               }
           };
 
-          // Trigger tự động lưu (background)
+          // Trigger tự động lưu (background) - ĐÃ LOẠI BỎ TIMEOUT
           useEffect(() => {
-              // CHỈ TRIGGER khi game ENDED và CHƯA được lưu.
-              if (gameEnded && !isSessionSaved) { 
-                  setTimeout(() => {
-                      saveSessionAutomatically();
-                  }, 4000); 
+              // CHỈ TRIGGER khi game ENDED, CHƯA được lưu, và KHÔNG trong quá trình lưu.
+              if (gameEnded && !isSessionSaved && !isSaving) { 
+                  // GỌI HÀM LƯU NGAY LẬP TỨC ĐỂ KHẮC PHỤC LỖI MOBILE
+                  saveSessionAutomatically();
               }
               
-          }, [gameEnded, isSessionSaved]);
+          }, [gameEnded, isSessionSaved, isSaving]);
           
           // --- KẾT THÚC LOGIC LƯU ---
 
@@ -415,7 +409,6 @@
 		  };
 
 		  const confirmReset = () => {
-            // LƯU Ý: ĐÃ LOẠI BỎ LOGIC LƯU LỊCH SỬ KHI RESET GIỮA CHỪNG.
             setModal({ type: 'reset', data: null });
           }
 		  const cancelModal = () => setModal({ type: null, data: null });
@@ -432,6 +425,7 @@
 			setTotalRounds(null); 
 			setRoundsStartCount(0);
 			setIsSessionSaved(false); // ĐẶT LẠI TRẠNG THÁI MỚI NÀY
+            setIsSaving(false); // ĐẶT LẠI TRẠNG THÁI LƯU
 			localStorage.clear();
 			setModal({ type: null, data: null });
             setSelectedPlayerName(""); 
@@ -442,6 +436,11 @@
             if (gameEnded) {
                 showTempMessage("⚠️ Trò chơi đã kết thúc rồi!", "warning");
                 return;
+            }
+            
+            // Cần ít nhất 2 người chơi hoặc có lịch sử để tính tiền/lưu
+            if (players.length < 2 && history.length === 0) {
+                 return showTempMessage("⚠️ Chưa có người chơi hoặc ván nào để tính tiền!", "warning");
             }
             
             // Tính số ván đã chơi kể từ lần Set gần nhất
@@ -456,7 +455,7 @@
             
             // 3. The useEffect [gameEnded, isSessionSaved] will handle saveSessionAutomatically
             
-            showTempMessage("💰Nhớ banking sớm nhé!", "info", 4000); 
+            showTempMessage("💰 Nhớ banking sớm nhé!", "info", 4000); 
             setModal({ type: null, data: null });
         };
 
@@ -691,10 +690,9 @@
 			showTempMessage(`✅ Đã đặt còn ${num} ván nữa!`);
 		  };
 
-
 		  const canSelectWinner = players.length >= 2 && !manualMode && !gameEnded;
 		  const isMaxPlayers = players.length >= 5;
-		  const isFeatureDisabled = manualMode || gameEnded;
+		  const isFeatureDisabled = manualMode || gameEnded || isSaving; // Disable khi đang lưu
 		  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
 		  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
           
@@ -730,12 +728,23 @@
 					</div>
 				  </div>
 				)}
+                
+                {/* TRẠNG THÁI ĐANG LƯU */}
+                {isSaving && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[101]">
+                        <div className="bg-white p-6 rounded-xl shadow-2xl text-center flex items-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
+                            <span className="text-lg font-bold text-gray-700">Đang lưu lịch sử lên GitHub...</span>
+                        </div>
+                    </div>
+                )}
 
 			  <h1 className="text-2xl font-bold text-center mb-4 text-green-600">90% người chơi dừng lại trước khi thắng lớn!💰💰</h1>
 
 			  {gameEnded && (
 				<div className="text-center text-red-600 font-bold mb-3 text-lg">
 				  🏁 Trò chơi đã kết thúc — Reset để bắt đầu lại
+				  {isSessionSaved ? <span className="text-green-600"> (Đã lưu)</span> : <span className="text-gray-500"> (Chưa lưu)</span>}
 				</div>
 			  )}
 
@@ -919,7 +928,7 @@
 						"bg-blue-500 text-white"
 					}`}
 					onClick={toggleManualMode}
-					disabled={gameEnded || (manualMode && !totalOk)} 
+					disabled={gameEnded || (manualMode && !totalOk) || isSaving} // Disable khi đang lưu
 				  >
 					{manualMode ? (totalOk ? "💾 Hoàn thành" : "⚠️ Tổng điểm ≠ 0") : "✏️ Nhập điểm thủ công"}
 				  </button>
@@ -929,15 +938,16 @@
 			  {/* Nút Tính tiền và Reset (ĐÃ CHIA ĐÔI ĐỘ RỘNG) */}
 			  <div className="flex gap-2 mt-4">
 				<button 
-                   className={`flex-1 bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
+                   className={`flex-1 bg-orange-500 text-white px-3 py-2 rounded ${gameEnded || isSaving ? "opacity-50 cursor-not-allowed" : ""}`} 
                    onClick={confirmSettle}
-                   disabled={gameEnded}
+                   disabled={gameEnded || isSaving}
                 >
                    💰 Tính tiền
                 </button>
 				<button 
                     className="flex-1 bg-red-500 text-white px-3 py-2 rounded" 
                     onClick={confirmReset}
+                    disabled={isSaving} // Disable khi đang lưu
                 >
                     Reset
                 </button>
@@ -1061,9 +1071,6 @@
 						</>
 					)}
 					
-					{/* LOẠI BỎ Modal Export CSV */}
-					{/* {modal.type === 'export' && ( ... )} */}
-
 				  </div>
 				</div>
 			  )}
@@ -1100,16 +1107,17 @@
 							// Sử dụng Flexbox để căn đều tuyệt đối
 							<div key={c.name} className="history-item-line">
                                 
-                                {/* Cột 1: Tên người chơi (Flex-grow: 1) */}
+                                {/* Cột 1: Tên người chơi + Dấu ":" (Flex-grow: 1) */}
                                 <div className="history-player-name">
-                                    {c.name}
+                                    {c.name}:
                                 </div>
                                 
-                                {/* Cột 2: Dấu ":" */}
-                                <div>:</div>
-                                
-                                {/* Cột 3: +/- Điểm (Độ rộng cố định 40px, căn phải) */}
-                                <span className="delta-score">
+                                {/* Cột 2: +/- Điểm (Độ rộng cố định 40px, căn phải) */}
+                                <span className={`delta-score ${
+                                    c.delta > 0 ? 'text-green-600' : 
+                                    c.delta < 0 ? 'text-red-600' : 
+                                    'text-gray-600'
+                                }`}>
                                     {c.delta > 0 ? "+" : ""}{c.delta}
                                 </span>
 							</div>
