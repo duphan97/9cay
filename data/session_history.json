@@ -1,0 +1,20 @@
+[
+  {
+    "sessionId": "Session-2025-10-21T04:12:20.703Z",
+    "timestamp": "2025-10-21T04:12:20.703Z",
+    "totalRoundsSet": 1,
+    "roundsPlayed": 1,
+    "finalResults": [
+      {
+        "name": "Dũng Hoàng",
+        "score": -1,
+        "status": "Playing"
+      },
+      {
+        "name": "Dũng Nguyễn",
+        "score": 1,
+        "status": "Playing"
+      }
+    ]
+  }
+]
