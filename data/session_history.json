@@ -1,0 +1,45 @@
+[
+  {
+    "sessionId": "Session-2025-10-21T04:28:51.023Z",
+    "timestamp": "2025-10-21T04:28:51.023Z",
+    "totalRoundsSet": 0,
+    "roundsPlayed": 0,
+    "finalResults": [
+      {
+        "name": "Bình Đặng",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Định Ngô",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Nhân Trần",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Dự Phan",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Quý Huỳnh",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Khánh Đỗ",
+        "score": 0,
+        "status": "Kicked"
+      },
+      {
+        "name": "Dũng Nguyễn",
+        "score": 0,
+        "status": "Kicked"
+      }
+    ]
+  }
+]
