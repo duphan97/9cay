@@ -1,58 +1,4 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🎯 Binh 9 cây</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* Dùng 1 animation chung cho pulse, màu sắc dùng tailwind */
-    @keyframes pulse-base {0%,100%{opacity:1}50%{opacity:0.7}}
-    .pulse-effect{animation:pulse-base 1s infinite}
-    
-    /* CẬP NHẬT HIỆU ỨNG GLOW CỰC SẶC SỠ cho người thắng */
-    @keyframes winner-glow-enhanced {
-      0%,100%{background:#e6fffa;border: 3px solid #047857;box-shadow:0 0 15px rgba(4, 120, 87, 0.8)} /* Xanh nhạt, viền xanh đậm */
-      50%{background:#6ee7b7;border: 3px solid #065f46;box-shadow:0 0 25px rgba(6, 95, 70, 0.9)} /* Xanh sáng hơn, viền đậm hơn */
-    }
-    .winner-glow{animation:winner-glow-enhanced 1.2s infinite}
-    /* END CẬP NHẬT HIỆU ỨNG */
-    
-    /* Tên người chơi trong lịch sử: In đậm, màu đen */
-    .history-player-name {
-        font-weight: 700; 
-        color: #1f2937; 
-        /* Flex grow để chiếm hết không gian còn lại */
-        flex-grow: 1; 
-        overflow: hidden; /* Tránh tràn khi tên quá dài */
-        text-overflow: ellipsis; 
-        white-space: nowrap;
-    }
-    
-    /* Container cho mỗi dòng lịch sử để căn đều bằng flexbox */
-    .history-item-line {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-top: 2px;
-    }
-    
-    /* Cố định chiều rộng cho điểm để căn đều tuyệt đối */
-    .delta-score {
-        display: inline-block;
-        width: 40px; /* Độ rộng cố định, đủ cho "+99" */
-        text-align: right;
-        font-weight: 600; /* in đậm */
-    }
-  </style>
-</head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
-  <div id="root" class="w-full max-w-md"></div>
-
-	<script type="text/babel">
+<script type="text/babel">
 		const { useState, useEffect, useMemo } = React;
         
         // DANH SÁCH TÊN CỐ ĐỊNH 
@@ -128,7 +74,7 @@
           // State quản lý nhạc nền Double 
           const [doubleMusic, setDoubleMusic] = useState(null); 
 		  
-        // --- LOGIC AUDIO ---
+        // --- LOGIC AUDIO ĐÃ CẬP NHẬT (CHỈ PHÁT 1 FILE) ---
         
         const slugifyPlayerName = (name) => {
             return name
@@ -148,37 +94,32 @@
             return audio; 
         };
         
+        // CẬP NHẬT HÀM: Chỉ phát 1 file duy nhất
         const playWinnerAudio = (winnerName, isDouble) => {
-            const baseAudioFile = isDouble ? 'double.mp3' : 'daghidiem.mp3';
             const winnerSlug = slugifyPlayerName(winnerName);
-            const winnerAudioFile = `${winnerSlug}.mp3`;
-            
-            const baseAudio = playAudio(baseAudioFile);
+            let audioFileName = `${winnerSlug}.mp3`; // Tên file mặc định (văn thường)
 
-            baseAudio.onended = () => {
-                playAudio(winnerAudioFile);
-            };
+            // Nếu là Double, tiền tố thêm "double"
+            if (isDouble) {
+                audioFileName = `double${winnerSlug}.mp3`;
+            }
             
-            baseAudio.onerror = baseAudio.onabort = () => {
-                 console.warn(`File thông báo ${baseAudioFile} lỗi, phát tên người thắng sau 1 giây.`);
-                 setTimeout(() => playAudio(winnerAudioFile), 1000);
-            };
+            // Phát file âm thanh đã được chuẩn bị sẵn
+            playAudio(audioFileName);
         };
         
+        // HÀM BỊ LOẠI BỎ logic delay cũ, CHỈ PHÁT audio kết thúc game
         const playRoundEndAudio = (remainingRounds) => {
             let fileToPlay = null;
-            if (remainingRounds === 3) {
-                 fileToPlay = '3left.mp3';
-            } else if (remainingRounds === 2) {
-                 fileToPlay = '2left.mp3';
-            } else if (remainingRounds === 1) {
-                 fileToPlay = '1left.mp3';
-            } else if (remainingRounds <= 0) {
+            // Chỉ phát khi game thực sự kết thúc (<= 0)
+            if (remainingRounds <= 0) {
                  fileToPlay = 'gameover.mp3';
             }
             
+            // DÙNG setTimeout NGẮN hơn (hoặc bỏ) để tránh trùng lặp
             if (fileToPlay) {
-                setTimeout(() => playAudio(fileToPlay), 3500); 
+                // Giảm delay so với ban đầu 3500ms
+                setTimeout(() => playAudio(fileToPlay), 1500); 
             }
         };
         
@@ -208,7 +149,7 @@
             };
         }, [doubleNext, doubleMusic]);
         
-        // --- KẾT THÚC LOGIC AUDIO ---
+        // --- KẾT THÚC LOGIC AUDIO ĐÃ CẬP NHẬT ---
 
 
 		  // Tính toán trạng thái vòng đấu
@@ -507,7 +448,7 @@
 			setPlayers(updatedPlayers);
 			setHistory(newHistory);
 			
-            // --- XỬ LÝ AUDIO ---
+            // --- XỬ LÝ AUDIO ĐÃ CẬP NHẬT ---
             playWinnerAudio(winner, wasDouble);
             
             // Tính số ván còn lại SAU khi ghi điểm
@@ -1126,9 +1067,3 @@
 		const root = ReactDOM.createRoot(document.getElementById("root"));
 		root.render(<App />);
 	  </script>
-	  
-</body>
-</html>
-
-
-
