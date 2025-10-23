@@ -1,38 +1,5 @@
 [
   {
-    "sessionId": "Session-2025-10-23T07:48:28.839Z",
-    "timestamp": "2025-10-23T07:48:28.840Z",
-    "totalRoundsSet": 5,
-    "roundsPlayed": 5,
-    "finalResults": [
-      {
-        "name": "Dũng Nguyễn",
-        "score": -8,
-        "status": "Playing"
-      },
-      {
-        "name": "Bình Đặng",
-        "score": -8,
-        "status": "Playing"
-      },
-      {
-        "name": "Định Ngô",
-        "score": -3,
-        "status": "Playing"
-      },
-      {
-        "name": "Đông Lê",
-        "score": -8,
-        "status": "Playing"
-      },
-      {
-        "name": "Dự Phan",
-        "score": 27,
-        "status": "Playing"
-      }
-    ]
-  },
-  {
     "sessionId": "Session-2025-10-23T07:43:51.945Z",
     "timestamp": "2025-10-23T07:43:51.945Z",
     "totalRoundsSet": 5,
