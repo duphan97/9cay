@@ -1,5 +1,38 @@
 [
   {
+    "sessionId": "Session-2025-10-24T07:44:42.467Z",
+    "timestamp": "2025-10-24T07:44:42.470Z",
+    "totalRoundsSet": 17,
+    "roundsPlayed": 17,
+    "finalResults": [
+      {
+        "name": "Dũng Nguyễn",
+        "score": 8,
+        "status": "Playing"
+      },
+      {
+        "name": "Khánh Đỗ",
+        "score": 5,
+        "status": "Playing"
+      },
+      {
+        "name": "Bình Đặng",
+        "score": -14,
+        "status": "Playing"
+      },
+      {
+        "name": "Định Ngô",
+        "score": 2,
+        "status": "Playing"
+      },
+      {
+        "name": "Minh Anh",
+        "score": -1,
+        "status": "Kicked"
+      }
+    ]
+  },
+  {
     "sessionId": "Session-2025-10-23T10:59:27.971Z",
     "timestamp": "2025-10-23T10:59:27.971Z",
     "totalRoundsSet": 5,
