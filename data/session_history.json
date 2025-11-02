@@ -1,2 +1,31 @@
 [
+  {
+    "sessionId": "Session-2025-11-02T17:29:32.900Z",
+    "startTime": "2025-11-02T17:27:05.098Z",
+    "endTime": "2025-11-02T17:29:32.900Z",
+    "totalRoundsSet": 6,
+    "roundsPlayed": 6,
+    "finalResults": [
+      {
+        "name": "Dũng Nguyễn",
+        "score": -8,
+        "status": "Playing"
+      },
+      {
+        "name": "Đông Lê",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Minh Anh",
+        "score": -4,
+        "status": "Playing"
+      },
+      {
+        "name": "Nhân Trần",
+        "score": 12,
+        "status": "Playing"
+      }
+    ]
+  }
 ]
