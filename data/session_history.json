@@ -1,26 +1,2 @@
 [
-  {
-    "sessionId": "Session-2025-11-02T17:52:56.842Z",
-    "startTime": null,
-    "endTime": "2025-11-02T17:52:56.842Z",
-    "totalRoundsSet": 0,
-    "roundsPlayed": 0,
-    "finalResults": [
-      {
-        "name": "Dự Phan",
-        "score": 0,
-        "status": "Playing"
-      },
-      {
-        "name": "Định Ngô",
-        "score": 0,
-        "status": "Playing"
-      },
-      {
-        "name": "Khánh Đỗ",
-        "score": 0,
-        "status": "Playing"
-      }
-    ]
-  }
 ]
