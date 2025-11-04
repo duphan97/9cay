@@ -65,6 +65,12 @@
 				];
 				// END DANH SÁCH TÊN
 
+				// ====================================================================
+				// *** BƯỚC 1: KHAI BÁO KEY PREFIX ĐỘC NHẤT CHO ỨNG DỤNG NÀY ***
+				// Sử dụng một tiền tố độc nhất để không xung đột với ứng dụng khác.
+				const APP_PREFIX = '9cay_'; 
+				// ====================================================================
+
 				// --- BASE64 AN TOÀN CHO UNICODE (ĐÃ SỬA LỖI btoa) ---
 				// Hàm này chuyển đổi Unicode string sang Base64
 				const unicodeToB64 = (str) => btoa(
@@ -99,21 +105,21 @@
 				// --------------------------------------------------------------------------------------
 
 				function App() {
-				  // Dữ liệu chính
-				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem("players")) || []);
-				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem("kickedPlayers")) || []);
-				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("history")) || []);
+				  // Dữ liệu chính (*** BƯỚC 2: Thêm APP_PREFIX vào getItem ***)
+				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "players")) || []);
+				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "kickedPlayers")) || []);
+				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "history")) || []);
 				  
 				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm)
-				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem("totalRounds")) || null);
+				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "totalRounds")) || null);
 				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
-				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem("roundsStartCount")) || 0);
+				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "roundsStartCount")) || 0);
 
 				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
-				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem("isSessionSaved")) || false);
+				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "isSessionSaved")) || false);
 				  
 				  // *** THÊM MỚI: Thời gian bắt đầu (Ván 1) ***
-				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem("startTime")) || null);
+				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(APP_PREFIX + "startTime")) || null);
 
 				  // Trạng thái phiên hiện tại
 				  const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
@@ -383,15 +389,15 @@
 				  // --- KẾT THÚC LOGIC LƯU ---
 
 
-				  // Lưu trữ dữ liệu vào localStorage
+				  // Lưu trữ dữ liệu vào localStorage (*** BƯỚC 2: Thêm APP_PREFIX vào setItem ***)
 				  useEffect(() => {
-					localStorage.setItem("players", JSON.stringify(players));
-					localStorage.setItem("kickedPlayers", JSON.stringify(kickedPlayers));
-					localStorage.setItem("history", JSON.stringify(history));
-					localStorage.setItem("totalRounds", JSON.stringify(totalRounds));
-					localStorage.setItem("roundsStartCount", JSON.stringify(roundsStartCount)); 
-					localStorage.setItem("isSessionSaved", JSON.stringify(isSessionSaved)); // LƯU TRẠNG THÁI MỚI
-					localStorage.setItem("startTime", JSON.stringify(startTime)); // *** THÊM MỚI ***
+					localStorage.setItem(APP_PREFIX + "players", JSON.stringify(players));
+					localStorage.setItem(APP_PREFIX + "kickedPlayers", JSON.stringify(kickedPlayers));
+					localStorage.setItem(APP_PREFIX + "history", JSON.stringify(history));
+					localStorage.setItem(APP_PREFIX + "totalRounds", JSON.stringify(totalRounds));
+					localStorage.setItem(APP_PREFIX + "roundsStartCount", JSON.stringify(roundsStartCount)); 
+					localStorage.setItem(APP_PREFIX + "isSessionSaved", JSON.stringify(isSessionSaved)); // LƯU TRẠNG THÁI MỚI
+					localStorage.setItem(APP_PREFIX + "startTime", JSON.stringify(startTime)); // *** THÊM MỚI ***
 				  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved, startTime]); // *** THÊM startTime VÀO DEPENDENCY ***
 
 				  // Điều chỉnh hàm showTempMessage
@@ -441,6 +447,8 @@
 				  }
 				  const cancelModal = () => setModal({ type: null, data: null });
 				  
+				  // ====================================================================
+				  // *** BƯỚC 3: CẬP NHẬT resetGame để chỉ xóa key của ứng dụng này ***
 				  const resetGame = () => {
 					// Dừng nhạc nền khi reset
 					if (doubleMusic) {
@@ -448,16 +456,28 @@
 						setDoubleMusic(null);
 					}
 					
+					// Xóa các state cục bộ
 					setPlayers([]); setKickedPlayers([]); setHistory([]); setWinner("");
 					setDoubleNext(false); setManualMode(false);
 					setTotalRounds(null); 
 					setRoundsStartCount(0);
-					setIsSessionSaved(false); // ĐẶT LẠI TRẠNG THÁI MỚI NÀY
-					setStartTime(null); // *** THÊM MỚI: Reset startTime ***
-					localStorage.clear();
+					setIsSessionSaved(false); 
+					setStartTime(null); 
+					
+					// Xóa DỮ LIỆU CỦA ỨNG DỤNG NÀY trong LocalStorage
+					const keysToClear = [
+						"players", "kickedPlayers", "history", "totalRounds", 
+						"roundsStartCount", "isSessionSaved", "startTime"
+					];
+
+					keysToClear.forEach(key => {
+						localStorage.removeItem(APP_PREFIX + key);
+					});
+					
 					setModal({ type: null, data: null });
 					setSelectedPlayerName(""); 
 				  };
+				  // ====================================================================
 				  
 				  // --- BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
 				const settleGame = () => {
@@ -1161,6 +1181,3 @@
 			  </script>
 </body>
 </html>
-
-
-
