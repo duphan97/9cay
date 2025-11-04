@@ -295,14 +295,26 @@
 							<div className="space-y-3">
 								{allTimeScores.map((p, index) => (
 									<div key={p.name} className={`flex justify-between items-center p-3 rounded-lg transition duration-150 ${index < 3 ? 'bg-yellow-200 font-extrabold border-l-4 border-yellow-600' : 'bg-white border hover:bg-gray-50'}`}>
-										<span className="text-xl">
-											{index === 0 && '🥇'}
-											{index === 1 && '🥈'}
-											{index === 2 && '🥉'}
-											{index >= 3 && <span className="text-gray-500 font-bold w-6 inline-block text-center">{index + 1}.</span>}
-											{p.name}
-										</span>
-										<span className={`text-2xl font-extrabold ${p.totalScore >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+										
+										{/* NEW STRUCTURE: Fixed width for rank, better alignment for name */}
+										<div className="flex items-center text-xl flex-grow overflow-hidden">
+											
+											{/* Rank/Number Holder (w-10 to accommodate 3 digits + dot, right aligned) */}
+											<span className="font-extrabold w-10 text-right mr-3 flex-shrink-0">
+												{index === 0 && '🥇'}
+												{index === 1 && '🥈'}
+												{index === 2 && '🥉'}
+												{index >= 3 && <span className="text-gray-500">{index + 1}.</span>}
+											</span>
+											
+											{/* Player Name (takes remaining space, truncate if needed) */}
+											<span className="truncate">
+												{p.name}
+											</span>
+										</div>
+										
+										{/* Score */}
+										<span className={`text-2xl font-extrabold ${p.totalScore >= 0 ? 'text-green-600' : 'text-red-600'} flex-shrink-0`}>
 											{p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore}
 										</span>
 									</div>
