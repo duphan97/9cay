@@ -602,7 +602,7 @@
 					});
 				  };
 
-				  // Hàm thực hiện Hoàn tác (executeUndo) - XÓA bản ghi record cuối cùng (ĐÃ CẬP NHẬT AUDIO)
+				  // Hàm thực hiện Hoàn tác (executeUndo) - ĐÃ SỬA LỖI TYPO
 				  const executeUndo = () => {
 					const { lastRecord, undoRoundNum, lastRecordIndex } = modal.data;
 					setModal({ type: null, data: null }); 
@@ -619,7 +619,8 @@
 					
 					const undoEvent = { 
 						type: "undo", 
-						targetRound: undoRoundnum, 
+						// SỬA LỖI TYPO TỪ undoRoundOnum THÀNH undoRoundNum
+						targetRound: undoRoundNum, 
 						undoChanges: lastRecord.changes, 
 						undoWinner: lastRecord.winner,
 						undoDouble: lastRecord.isDouble,
@@ -1181,4 +1182,3 @@
 			  </script>
 </body>
 </html>
-
