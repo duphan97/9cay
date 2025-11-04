@@ -54,6 +54,25 @@
   <div id="root" class="w-full max-w-md"></div>
 
 	<script type="text/babel">
+				// --- HẰNG SỐ VÀ HELPER CHO LOCAL STORAGE (ĐÃ CẬP NHẬT) ---
+				const LOCAL_STORAGE_PREFIX = '9cay_';
+
+				// Helper: Lấy key đã có prefix
+				const getStorageKey = (key) => `${LOCAL_STORAGE_PREFIX}${key}`;
+
+				// Helper: Xóa tất cả các key có prefix của 9 Cay
+				const clear9CayStorage = () => {
+					// 1. Lấy tất cả các key trong localStorage
+					const keys = Object.keys(localStorage);
+					
+					// 2. Lọc ra các key bắt đầu bằng prefix
+					const keysToRemove = keys.filter(key => key.startsWith(LOCAL_STORAGE_PREFIX));
+					
+					// 3. Xóa các key đã lọc
+					keysToRemove.forEach(key => localStorage.removeItem(key));
+				};
+				// --- END HẰNG SỐ VÀ HELPER ---
+				
 				const { useState, useEffect, useMemo } = React;
 				
 				// DANH SÁCH TÊN CỐ ĐỊNH 
@@ -99,21 +118,21 @@
 				// --------------------------------------------------------------------------------------
 
 				function App() {
-				  // Dữ liệu chính
-				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem("players")) || []);
-				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem("kickedPlayers")) || []);
-				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("history")) || []);
+				  // Dữ liệu chính (ĐÃ CẬP NHẬT PREFIX)
+				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("players"))) || []);
+				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("kickedPlayers"))) || []);
+				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("history"))) || []);
 				  
-				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm)
-				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem("totalRounds")) || null);
-				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
-				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem("roundsStartCount")) || 0);
+				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm) (ĐÃ CẬP NHẬT PREFIX)
+				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("totalRounds"))) || null);
+				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm) (ĐÃ CẬP NHẬT PREFIX)
+				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("roundsStartCount"))) || 0);
 
-				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
-				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem("isSessionSaved")) || false);
+				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa (ĐÃ CẬP NHẬT PREFIX)
+				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isSessionSaved"))) || false);
 				  
-				  // *** THÊM MỚI: Thời gian bắt đầu (Ván 1) ***
-				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem("startTime")) || null);
+				  // *** THÊM MỚI: Thời gian bắt đầu (Ván 1) *** (ĐÃ CẬP NHẬT PREFIX)
+				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("startTime"))) || null);
 
 				  // Trạng thái phiên hiện tại
 				  const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
@@ -383,15 +402,15 @@
 				  // --- KẾT THÚC LOGIC LƯU ---
 
 
-				  // Lưu trữ dữ liệu vào localStorage
+				  // Lưu trữ dữ liệu vào localStorage (ĐÃ CẬP NHẬT PREFIX)
 				  useEffect(() => {
-					localStorage.setItem("players", JSON.stringify(players));
-					localStorage.setItem("kickedPlayers", JSON.stringify(kickedPlayers));
-					localStorage.setItem("history", JSON.stringify(history));
-					localStorage.setItem("totalRounds", JSON.stringify(totalRounds));
-					localStorage.setItem("roundsStartCount", JSON.stringify(roundsStartCount)); 
-					localStorage.setItem("isSessionSaved", JSON.stringify(isSessionSaved)); // LƯU TRẠNG THÁI MỚI
-					localStorage.setItem("startTime", JSON.stringify(startTime)); // *** THÊM MỚI ***
+					localStorage.setItem(getStorageKey("players"), JSON.stringify(players));
+					localStorage.setItem(getStorageKey("kickedPlayers"), JSON.stringify(kickedPlayers));
+					localStorage.setItem(getStorageKey("history"), JSON.stringify(history));
+					localStorage.setItem(getStorageKey("totalRounds"), JSON.stringify(totalRounds));
+					localStorage.setItem(getStorageKey("roundsStartCount"), JSON.stringify(roundsStartCount)); 
+					localStorage.setItem(getStorageKey("isSessionSaved"), JSON.stringify(isSessionSaved)); // LƯU TRẠNG THÁI MỚI
+					localStorage.setItem(getStorageKey("startTime"), JSON.stringify(startTime)); // *** THÊM MỚI ***
 				  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved, startTime]); // *** THÊM startTime VÀO DEPENDENCY ***
 
 				  // Điều chỉnh hàm showTempMessage
@@ -441,6 +460,7 @@
 				  }
 				  const cancelModal = () => setModal({ type: null, data: null });
 				  
+				  // HÀM RESET (ĐÃ CẬP NHẬT LOGIC XÓA LOCAL STORAGE AN TOÀN)
 				  const resetGame = () => {
 					// Dừng nhạc nền khi reset
 					if (doubleMusic) {
@@ -454,7 +474,7 @@
 					setRoundsStartCount(0);
 					setIsSessionSaved(false); // ĐẶT LẠI TRẠNG THÁI MỚI NÀY
 					setStartTime(null); // *** THÊM MỚI: Reset startTime ***
-					localStorage.clear();
+					clear9CayStorage(); // <- SỬ DỤNG HÀM XÓA CÓ PREFIX
 					setModal({ type: null, data: null });
 					setSelectedPlayerName(""); 
 				  };
@@ -599,7 +619,7 @@
 					
 					const undoEvent = { 
 						type: "undo", 
-						targetRound: undoRoundNum, 
+						targetRound: undoRoundOnum, 
 						undoChanges: lastRecord.changes, 
 						undoWinner: lastRecord.winner,
 						undoDouble: lastRecord.isDouble,
@@ -1161,6 +1181,3 @@
 			  </script>
 </body>
 </html>
-
-
-
