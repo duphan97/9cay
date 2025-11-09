@@ -8,7 +8,8 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> 
+    {/* KHÔNG CẦN THƯ VIỆN CRYPTO-JS NỮA */}
+    {/* <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> */} 
     <style>
         /* CSS MỚI: Căn chỉnh hiển thị lịch sử chi tiết */
         
@@ -59,37 +60,8 @@
 			const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
 			// --- END CẤU HÌNH GITHUB ---
 
-
-			// --- CẤU HÌNH BẢO MẬT PBKDF2 (DỮ LIỆU CỦA BẠN) ---
-			// Thuật toán: PBKDF2WithHmacSHA256
+			// --- ĐÃ LOẠI BỎ CẤU HÌNH BẢO MẬT PBKDF2 ---
 			
-			// 1. HASH CỦA MẬT KHẨU (Derived Key)
-			const SECRET_PASSWORD_HASH_B64 = 'DfhK0GwpwGTAqvgGMNTYVyjjGo46w43K5Qs1h2OTqaA='; 
-			// 2. SALT (Muối - Base64 Encoded)
-			const FIXED_SALT_B64 = 'WPJeEB+s7J2CPN8Mg5oTqA==';
-			// 3. SỐ VÒNG LẶP (Iterations - Tăng tốc độ load)
-			const ITERATIONS = 1000;
-			// 4. ĐỘ DÀI KEY (256 bits = 32 bytes)
-			const KEY_SIZE_WORDS = 256 / 8 / 4; 
-
-			// Hàm Hashing bằng PBKDF2 (Sử dụng CryptoJS)
-			const hashPasswordPBKDF2 = (password) => {
-				// Parse Salt từ Base64 sang WordArray
-				const saltWords = CryptoJS.enc.Base64.parse(FIXED_SALT_B64);
-
-				// Dùng PBKDF2
-				const key = CryptoJS.PBKDF2(password, saltWords, {
-					keySize: KEY_SIZE_WORDS, // 256 bits
-					iterations: ITERATIONS,
-					hasher: CryptoJS.algo.SHA256 // Thuật toán băm cơ sở
-				});
-
-				// Trả về Hash dưới dạng Base64 String
-				return key.toString(CryptoJS.enc.Base64);
-			};
-			// --- END CẤU HÌNH BẢO MẬT PBKDF2 ---
-
-
 			// --- BASE64 AN TOÀN CHO UNICODE (GIỮ NGUYÊN) ---
 			const b64ToUnicode = (str) => decodeURIComponent(
 				Array.prototype.map.call(atob(str), (c) => 
@@ -99,7 +71,7 @@
 			// --- END FIX ---
 
 
-			// Hàm Tải lịch sử trực tiếp từ GitHub (CHỈ GỌI KHI ĐÃ XÁC THỰC)
+			// Hàm Tải lịch sử trực tiếp từ GitHub
 			const fetchHistoryFromGitHub = async () => {
 				const response = await fetch(GITHUB_API_URL, {
 					method: 'GET',
@@ -109,6 +81,7 @@
 				});
 
 				if (response.status === 404) {
+					// Trả về mảng rỗng nếu không tìm thấy file (chưa có lịch sử)
 					return []; 
 				}
 				if (!response.ok) {
@@ -178,106 +151,63 @@
 
 			function HistoryApp() {
 				const [sessions, setSessions] = useState(null);
-				const [loading, setLoading] = useState(false);
-				
-				// TRẠNG THÁI XÁC THỰC
-				const [isAuthenticated, setIsAuthenticated] = useState(false);
-				const [password, setPassword] = useState('');
-				const [authError, setAuthError] = useState(null);
+				const [loading, setLoading] = useState(true); // Bắt đầu bằng trạng thái loading
+				const [loadError, setLoadError] = useState(null); // Sử dụng loadError thay cho authError
 
-				// XỬ LÝ ĐĂNG NHẬP
-				const handleLogin = async (e) => {
-					e.preventDefault();
-					setLoading(true);
-					setAuthError(null);
-
-					// 1. Tạo Hash bằng PBKDF2 (Sẽ mất 1 khoảng thời gian nhỏ do ITERATIONS = 1000)
-					const inputHash = hashPasswordPBKDF2(password);
-					
-					// 2. SO SÁNH HASH
-					if (inputHash === SECRET_PASSWORD_HASH_B64) {
-						
-						// Mật khẩu đúng, bắt đầu tải dữ liệu
+				// TỰ ĐỘNG TẢI LỊCH SỬ KHI COMPONENT LOAD
+				useEffect(() => {
+					const loadHistory = async () => {
+						setLoading(true);
+						setLoadError(null);
 						try {
 							const data = await fetchHistoryFromGitHub();
 							setSessions(data);
-							setIsAuthenticated(true); // Đăng nhập thành công
-							setPassword(''); // Xóa mật khẩu khỏi bộ nhớ
 						} catch (err) {
 							console.error("Lỗi tải lịch sử:", err.message);
-							setAuthError("Đăng nhập thành công nhưng lỗi tải dữ liệu lịch sử."); 
+							setLoadError("Lỗi khi tải dữ liệu lịch sử từ GitHub. Vui lòng kiểm tra kết nối mạng."); 
+						} finally {
+							setLoading(false);
 						}
-					} else {
-						// Mật khẩu sai
-						setAuthError("Mật khẩu không chính xác. Vui lòng thử lại.");
-						setPassword('');
-					}
-					
-					// Thêm độ trễ cố định nhỏ để chống timing attack
-					setTimeout(() => setLoading(false), 500); 
-				};
+					};
+
+					loadHistory();
+				}, []); // Chỉ chạy một lần khi component mount
 
 				const allTimeScores = useMemo(() => calculateAllTimeScores(sessions), [sessions]);
 
-
-				// --- GIAO DIỆN XÁC THỰC ---
-				if (!isAuthenticated) {
-					return (
-						<div className="flex flex-col items-center justify-center h-full min-h-[50vh] p-4">
-							<form onSubmit={handleLogin} className="w-full max-w-sm bg-white p-8 rounded-xl shadow-2xl border border-purple-200">
-								<h2 className="text-3xl font-extrabold text-center text-purple-700 mb-6">🔒 Truy Cập Lịch Sử</h2>
-								<input
-									type="password"
-									placeholder="Nhập Mật Khẩu"
-									value={password}
-									onChange={(e) => setPassword(e.target.value)}
-									className="w-full p-3 border border-gray-300 rounded-lg mb-4 text-lg focus:ring-4 focus:ring-purple-300 focus:border-purple-500 transition duration-150"
-									disabled={loading}
-									required
-								/>
-								{authError && <p className="text-red-600 text-sm mb-4 text-center font-medium">{authError}</p>}
-								<button
-									type="submit"
-									className="w-full bg-purple-600 text-white font-bold text-lg py-3 rounded-lg hover:bg-purple-700 transition duration-200 disabled:bg-purple-300 shadow-md"
-									disabled={loading || !password}
-								>
-									{loading ? 'Đang Kiểm Tra...' : 'Mở Lịch Sử'}
-								</button>
-							</form>
-						</div>
-					);
-				}
 				
-				// --- Giao diện Tải/Lỗi sau khi Đăng nhập thành công ---
+				// --- Giao diện Đang Tải ---
 				if (loading) {
 					return (
-						<div className="text-center p-8">
-							<p className="font-semibold mb-4 text-blue-600">Đang tải lịch sử tổng hợp...</p>
-							<div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto"></div>
+						<div className="text-center p-8 min-h-[50vh] flex flex-col justify-center items-center">
+							<p className="font-semibold mb-4 text-blue-600 text-lg">Đang tải lịch sử tổng hợp...</p>
+							<div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto"></div>
 						</div>
 					);
 				}
 
-				if (authError && !sessions) { 
+				// --- Giao diện Lỗi Tải ---
+				if (loadError && !sessions) { 
 					return (
 						<div className="text-center p-8 bg-red-100 border border-red-400 rounded-xl shadow-lg">
-							<p className="font-bold text-red-700 mb-3 text-lg">❌ Lỗi Tải Dữ Liệu</p>
-							<p className="text-base text-gray-700">{authError}</p>
+							<p className="font-bold text-red-700 mb-3 text-2xl">❌ Lỗi Tải Dữ Liệu</p>
+							<p className="text-base text-gray-700">{loadError}</p>
 							<button 
-								onClick={() => setIsAuthenticated(false)}
-								className="inline-block bg-gray-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-gray-600 transition mt-4 shadow-md">
-								↩️ Quay lại Đăng nhập
+								onClick={() => window.location.reload()} // Tải lại trang để thử lại
+								className="inline-block bg-purple-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-purple-700 transition mt-4 shadow-md text-lg">
+								🔄 Thử lại
 							</button>
 						</div>
 					);
 				}
 
+				// --- Giao diện Chưa Có Dữ Liệu ---
 				if (!sessions || sessions.length === 0) {
 					return (
 						<div className="text-center p-8 bg-yellow-100 border border-yellow-400 rounded-xl shadow-lg">
-							<p className="font-bold text-yellow-700 text-lg">📜 Chưa Có Dữ Liệu Lịch Sử</p>
+							<p className="font-bold text-yellow-700 text-2xl">📜 Chưa Có Dữ Liệu Lịch Sử</p>
 							<p className="text-base text-gray-600 mt-2">Hãy hoàn thành một phiên chơi để hệ thống tự động lưu.</p>
-							<a href="index.html" className="inline-block bg-blue-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-600 transition mt-4 shadow-md">
+							<a href="index.html" className="inline-block bg-blue-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-600 transition mt-4 shadow-md text-lg">
 								↩️ Quay lại Game
 							</a>
 						</div>
