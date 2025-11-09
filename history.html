@@ -8,8 +8,6 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    {/* KHÔNG CẦN THƯ VIỆN CRYPTO-JS NỮA */}
-    {/* <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> */} 
     <style>
         /* CSS MỚI: Căn chỉnh hiển thị lịch sử chi tiết */
         
@@ -52,17 +50,14 @@
 	<script type="text/babel">
 			const { useState, useEffect, useMemo } = React;
 
-			// --- CẤU HÌNH GITHUB (PHẢI KHỚP VỚI index.html) ---
+			// --- CẤU HÌNH GITHUB ---
 			const REPO_OWNER = 'duphan97';
 			const REPO_NAME = '9cay';
 			const DATA_FILE_PATH = 'data/session_history.json'; 
-			// Endpoint để lấy nội dung file JSON đã được Base64 encoded
 			const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
 			// --- END CẤU HÌNH GITHUB ---
 
-			// --- ĐÃ LOẠI BỎ CẤU HÌNH BẢO MẬT PBKDF2 ---
-			
-			// --- BASE64 AN TOÀN CHO UNICODE (GIỮ NGUYÊN) ---
+			// --- BASE64 AN TOÀN CHO UNICODE ---
 			const b64ToUnicode = (str) => decodeURIComponent(
 				Array.prototype.map.call(atob(str), (c) => 
 					'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
@@ -81,7 +76,6 @@
 				});
 
 				if (response.status === 404) {
-					// Trả về mảng rỗng nếu không tìm thấy file (chưa có lịch sử)
 					return []; 
 				}
 				if (!response.ok) {
@@ -129,11 +123,9 @@
 			// Helper cho hiển thị thời gian
 			const formatSessionDate = (isoString) => {
 				try {
-					// Thêm kiểm tra null/undefined
 					if (!isoString) return 'N/A'; 
 					
 					const date = new Date(isoString);
-					// Kiểm tra ngày không hợp lệ
 					if (isNaN(date.getTime())) return 'N/A'; 
 					
 					return date.toLocaleDateString('vi-VN', {
@@ -151,10 +143,10 @@
 
 			function HistoryApp() {
 				const [sessions, setSessions] = useState(null);
-				const [loading, setLoading] = useState(true); // Bắt đầu bằng trạng thái loading
-				const [loadError, setLoadError] = useState(null); // Sử dụng loadError thay cho authError
+				const [loading, setLoading] = useState(true); 
+				const [loadError, setLoadError] = useState(null); 
 
-				// TỰ ĐỘNG TẢI LỊCH SỬ KHI COMPONENT LOAD
+				// TỰ ĐỘNG TẢI LỊCH SỬ
 				useEffect(() => {
 					const loadHistory = async () => {
 						setLoading(true);
@@ -171,7 +163,7 @@
 					};
 
 					loadHistory();
-				}, []); // Chỉ chạy một lần khi component mount
+				}, []);
 
 				const allTimeScores = useMemo(() => calculateAllTimeScores(sessions), [sessions]);
 
@@ -193,7 +185,7 @@
 							<p className="font-bold text-red-700 mb-3 text-2xl">❌ Lỗi Tải Dữ Liệu</p>
 							<p className="text-base text-gray-700">{loadError}</p>
 							<button 
-								onClick={() => window.location.reload()} // Tải lại trang để thử lại
+								onClick={() => window.location.reload()}
 								className="inline-block bg-purple-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-purple-700 transition mt-4 shadow-md text-lg">
 								🔄 Thử lại
 							</button>
@@ -282,7 +274,6 @@
 													{session.roundsPlayed} Ván ({gameStatus})
 												</span>
 												
-												{/* === BẮT ĐẦU CẬP NHẬT THỜI GIAN === */}
 												{/* Hiển thị thời gian bắt đầu (nếu có) */}
 												{session.startTime ? (
 													<p className="text-xs text-gray-500 mt-1">
@@ -294,11 +285,10 @@
 													</p>
 												)}
 												
-												{/* Hiển thị thời gian kết thúc (dùng endTime hoặc fallback về timestamp cho dữ liệu cũ) */}
+												{/* Hiển thị thời gian kết thúc */}
 												<p className={`text-xs text-gray-500 ${session.startTime ? 'mt-0.5' : 'mt-1'}`}>
 													🗓️ Kết thúc: <span className="font-medium">{formatSessionDate(session.endTime || session.timestamp)}</span>
 												</p>
-												{/* === KẾT THÚC CẬP NHẬT THỜI GIAN === */}
 
 											</div>
 										</div>
