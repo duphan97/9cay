@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📜 Lịch Sử Tổng Hợp & BXH</title>
+    <title>🏆 BXH Tổng Hợp</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -11,8 +11,8 @@
     <style>
         /* CSS MỚI: Căn chỉnh hiển thị lịch sử chi tiết */
         
-        /* Cố định chiều rộng cho điểm để căn đều tuyệt đối */
-        .final-score {
+        /* Cố định chiều rộng cho điểm để căn đều tuyệt đối (Vẫn giữ để score trong BXH căn đều) */
+        .final-score { 
             display: inline-block;
             width: 60px; /* Độ rộng cố định, đủ cho "+999" */
             text-align: right;
@@ -20,8 +20,8 @@
             flex-shrink: 0; /* Không cho phép bị co lại */
         }
         
-        /* Tên người chơi trong lịch sử: In đậm, màu đen */
-        .history-player-name {
+        /* Tên người chơi trong lịch sử (Vẫn giữ để tên trong BXH hiển thị tốt) */
+        .history-player-name { 
             font-weight: 700; 
             color: #1f2937; 
             flex-grow: 1; 
@@ -119,26 +119,8 @@
 
 				return scoreboard;
 			};
-
-			// Helper cho hiển thị thời gian
-			const formatSessionDate = (isoString) => {
-				try {
-					if (!isoString) return 'N/A'; 
-					
-					const date = new Date(isoString);
-					if (isNaN(date.getTime())) return 'N/A'; 
-					
-					return date.toLocaleDateString('vi-VN', {
-						year: 'numeric',
-						month: '2-digit',
-						day: '2-digit',
-						hour: '2-digit',
-						minute: '2-digit'
-					});
-				} catch {
-					return isoString ? isoString.substring(0, 10) : 'N/A';
-				}
-			};
+            
+			// Đã loại bỏ formatSessionDate vì không còn dùng đến
 
 
 			function HistoryApp() {
@@ -172,7 +154,7 @@
 				if (loading) {
 					return (
 						<div className="text-center p-8 min-h-[50vh] flex flex-col justify-center items-center">
-							<p className="font-semibold mb-4 text-blue-600 text-lg">Đang tải lịch sử tổng hợp...</p>
+							<p className="font-semibold mb-4 text-blue-600 text-lg">Đang tải bảng xếp hạng...</p>
 							<div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto"></div>
 						</div>
 					);
@@ -197,8 +179,8 @@
 				if (!sessions || sessions.length === 0) {
 					return (
 						<div className="text-center p-8 bg-yellow-100 border border-yellow-400 rounded-xl shadow-lg">
-							<p className="font-bold text-yellow-700 text-2xl">📜 Chưa Có Dữ Liệu Lịch Sử</p>
-							<p className="text-base text-gray-600 mt-2">Hãy hoàn thành một phiên chơi để hệ thống tự động lưu.</p>
+							<p className="font-bold text-yellow-700 text-2xl">🏆 Bảng Xếp Hạng Trống</p>
+							<p className="text-base text-gray-600 mt-2">Hãy hoàn thành một phiên chơi để tạo bảng xếp hạng đầu tiên.</p>
 							<a href="index.html" className="inline-block bg-blue-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-600 transition mt-4 shadow-md text-lg">
 								↩️ Quay lại Game
 							</a>
@@ -206,22 +188,22 @@
 					);
 				}
 
-				// --- Giao diện Lịch sử & BXH ---
+				// --- Giao diện Bảng Xếp Hạng ---
 				return (
 					<div>
-						<h1 className="text-3xl font-extrabold text-center text-purple-700 mb-8">📜 Lịch Sử & Bảng Xếp Hạng Tổng Hợp ({sessions.length} Phiên)</h1>
+						{/* Tiêu đề chính tập trung vào BXH */}
+						<h1 className="text-3xl font-extrabold text-center text-purple-700 mb-8">🏆 Bảng Xếp Hạng Tổng Điểm Toàn Thời Gian ({sessions.length} Phiên)</h1>
 						
 						{/* BẢNG XẾP HẠNG TỔNG ĐIỂM TOÀN THỜI GIAN */}
 						<div className="mb-10 p-5 bg-blue-50 border border-blue-200 rounded-xl shadow-xl">
-							<h2 className="text-2xl font-bold text-blue-800 mb-4 text-center border-b pb-2">🏆 Bảng Xếp Hạng Tổng Điểm Toàn Thời Gian</h2>
+							<h2 className="text-2xl font-bold text-blue-800 mb-4 text-center border-b pb-2">Danh sách Xếp Hạng</h2>
 							<div className="space-y-3">
 								{allTimeScores.map((p, index) => (
 									<div key={p.name} className={`flex justify-between items-center p-3 rounded-lg transition duration-150 ${index < 3 ? 'bg-yellow-200 font-extrabold border-l-4 border-yellow-600' : 'bg-white border hover:bg-gray-50'}`}>
 										
-										{/* NEW STRUCTURE: Fixed width for rank, better alignment for name */}
 										<div className="flex items-center text-xl flex-grow overflow-hidden">
 											
-											{/* Rank/Number Holder (w-10 to accommodate 3 digits + dot, right aligned) */}
+											{/* Rank/Number Holder */}
 											<span className="font-extrabold w-10 text-right mr-3 flex-shrink-0">
 												{index === 0 && '🥇'}
 												{index === 1 && '🥈'}
@@ -229,7 +211,7 @@
 												{index >= 3 && <span className="text-gray-500">{index + 1}.</span>}
 											</span>
 											
-											{/* Player Name (takes remaining space, truncate if needed) */}
+											{/* Player Name */}
 											<span className="truncate">
 												{p.name}
 											</span>
@@ -244,78 +226,8 @@
 							</div>
 						</div>
 
-						<h2 className="text-2xl font-bold text-center text-gray-700 mb-6 border-b pb-2">📋 Chi Tiết Các Phiên</h2>
+						{/* ĐÃ LOẠI BỎ PHẦN CHI TIẾT CÁC PHIÊN */}
 						
-						{/* DANH SÁCH CHI TIẾT CÁC PHIÊN */}
-						<div className="space-y-8">
-							{sessions.map((session, index) => {
-								
-								const sortedFinalResults = session.finalResults ? session.finalResults.sort((a, b) => b.score - a.score) : [];
-								
-								let gameStatus = 'Không rõ';
-								if (session.roundsPlayed > 0) {
-									if (session.totalRoundsSet === null || session.roundsPlayed >= session.totalRoundsSet) {
-										gameStatus = 'Hoàn thành';
-									} else {
-										gameStatus = 'Kết thúc sớm';
-									}
-								} else if (session.finalResults && session.finalResults.length > 0) {
-									gameStatus = 'Tính tiền ngay';
-								}
-
-								return (
-									<div key={index} className="border border-gray-300 rounded-xl p-5 bg-white shadow-xl hover:shadow-2xl transition duration-200">
-										<div className="flex justify-between items-center mb-3 border-b pb-3">
-											<h2 className="text-xl font-bold text-gray-800">
-												Phiên #{sessions.length - index}
-											</h2>
-											<div className="flex flex-col items-end">
-												<span className={`text-sm font-bold px-3 py-1 rounded-full ${gameStatus === 'Hoàn thành' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-													{session.roundsPlayed} Ván ({gameStatus})
-												</span>
-												
-												{/* Hiển thị thời gian bắt đầu (nếu có) */}
-												{session.startTime ? (
-													<p className="text-xs text-gray-500 mt-1">
-														⏳ Bắt đầu: <span className="font-medium">{formatSessionDate(session.startTime)}</span>
-													</p>
-												) : (
-													<p className="text-xs text-gray-500 mt-1 italic">
-														(Chưa rõ giờ bắt đầu)
-													</p>
-												)}
-												
-												{/* Hiển thị thời gian kết thúc */}
-												<p className={`text-xs text-gray-500 ${session.startTime ? 'mt-0.5' : 'mt-1'}`}>
-													🗓️ Kết thúc: <span className="font-medium">{formatSessionDate(session.endTime || session.timestamp)}</span>
-												</p>
-
-											</div>
-										</div>
-										
-										{/* Danh sách người chơi và điểm cuối */}
-										<div className="mt-2 space-y-1 text-base pt-2"> 
-											{
-												sortedFinalResults
-													.map(p => (
-													<div key={p.name} className="flex justify-between items-center">
-														
-														<div className={`history-player-name ${p.status === 'Kicked' ? 'text-gray-500 italic text-sm' : 'text-gray-800 text-base'}`}>
-															{p.name} {p.status === 'Kicked' && <span>(Dừng)</span>}
-														</div>
-														
-														{/* CỘT 2: Điểm cuối */}
-														<span className={`final-score ${p.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-															{p.score > 0 ? `+${p.score}` : p.score}
-														</span>
-													</div>
-												))
-											}
-										</div>
-									</div>
-								);
-							})}
-						</div>
 						<div className="text-center mt-8">
 							<a href="index.html" className="inline-block bg-blue-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-600 transition shadow-lg text-lg">
 								↩️ Quay lại Game
