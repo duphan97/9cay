@@ -9,38 +9,23 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* CSS MỚI: Căn chỉnh hiển thị lịch sử chi tiết */
-        
-        /* Cố định chiều rộng cho điểm để căn đều tuyệt đối (Vẫn giữ để score trong BXH căn đều) */
         .final-score { 
-            display: inline-block;
-            width: 60px; /* Độ rộng cố định, đủ cho "+999" */
-            text-align: right;
-            font-weight: 700; /* in đậm */
-            flex-shrink: 0; /* Không cho phép bị co lại */
+            display: inline-block; width: 60px; text-align: right; font-weight: 700; flex-shrink: 0;
         }
-        
-        /* Tên người chơi trong lịch sử (Vẫn giữ để tên trong BXH hiển thị tốt) */
         .history-player-name { 
-            font-weight: 700; 
-            color: #1f2937; 
-            flex-grow: 1; 
-            white-space: nowrap; /* Ngăn tên bị xuống dòng */
-            overflow: hidden; /* Ẩn phần bị tràn */
-            text-overflow: ellipsis; /* Hiển thị dấu ba chấm */
+            font-weight: 700; color: #1f2937; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        
-        /* Đảm bảo toàn bộ ứng dụng sử dụng font-sans */
         body {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-            background-color: #f3f4f6; /* Màu nền nhẹ */
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+            background-color: #f3f4f6;
         }
+        #root { max-width: 900px; margin: 0 auto; padding: 20px; }
         
-        /* Căn giữa nội dung chính */
-        #root {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
+        /* Custom Select */
+        .custom-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3csvg%3e");
+            background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+            padding-right: 2.5rem; -webkit-appearance: none; -moz-appearance: none; appearance: none;
         }
     </style>
 </head>
@@ -57,180 +42,237 @@
 			const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
 			// --- END CẤU HÌNH GITHUB ---
 
-			// --- BASE64 AN TOÀN CHO UNICODE ---
 			const b64ToUnicode = (str) => decodeURIComponent(
 				Array.prototype.map.call(atob(str), (c) => 
 					'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
 				).join('')
 			);
-			// --- END FIX ---
 
-
-			// Hàm Tải lịch sử trực tiếp từ GitHub
-			const fetchHistoryFromGitHub = async () => {
-				const response = await fetch(GITHUB_API_URL, {
-					method: 'GET',
-					headers: {
-						'Accept': 'application/vnd.github.v3+json', 
-					},
-				});
-
-				if (response.status === 404) {
-					return []; 
-				}
-				if (!response.ok) {
-					throw new Error(`Lỗi tải dữ liệu từ GitHub: ${response.statusText}`);
-				}
-
-				const fileData = await response.json();
-				
-				const encodedContent = fileData.content;
-				let sessionsData;
-				try {
-					const jsonString = b64ToUnicode(encodedContent); 
-					sessionsData = JSON.parse(jsonString);
-				} catch (e) {
-					console.error("Lỗi Decode/Parse JSON:", e);
-					throw new Error("Dữ liệu lịch sử không hợp lệ (lỗi Decode/JSON).");
-				}
-				
-				return sessionsData; 
+			// --- HÀM HỖ TRỢ NGÀY THÁNG ---
+			const getCurrentMonthKey = () => {
+				const now = new Date();
+				const month = now.getMonth() + 1;
+				return `${now.getFullYear()}-${month.toString().padStart(2, '0')}`;
 			};
 
-			// Hàm tính tổng điểm toàn thời gian (All-Time Score)
-			const calculateAllTimeScores = (sessions) => {
+			const getSessionMonthKey = (session) => {
+				// FIX: Ưu tiên endTime, sau đó là timestamp, cuối cùng là date
+				const timeStr = session.endTime || session.timestamp || session.date; 
+				
+				if (!timeStr) return 'UNKNOWN'; // Trả về Unknown nếu không tìm thấy bất kỳ trường nào
+				try {
+					const d = new Date(timeStr);
+					if (isNaN(d.getTime())) return 'UNKNOWN';
+					const month = d.getMonth() + 1;
+					return `${d.getFullYear()}-${month.toString().padStart(2, '0')}`;
+				} catch (e) {
+					return 'UNKNOWN';
+				}
+			};
+
+			const formatMonthDisplay = (key) => {
+				if (key === 'ALL') return '📅 Tất cả thời gian (All-Time)';
+				if (key === 'UNKNOWN') return '❓ Không xác định thời gian';
+				const [year, month] = key.split('-');
+				return `🗓️ Tháng ${month}/${year}`;
+			};
+
+			const fetchHistoryFromGitHub = async () => {
+				const response = await fetch(GITHUB_API_URL, {
+					method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json' },
+				});
+				if (response.status === 404) return [];
+				if (!response.ok) throw new Error(`Lỗi tải: ${response.statusText}`);
+				const fileData = await response.json();
+				try {
+					return JSON.parse(b64ToUnicode(fileData.content));
+				} catch (e) { throw new Error("Dữ liệu JSON hỏng."); }
+			};
+
+			// --- LOGIC TÍNH ĐIỂM (Đã sửa lỗi ép kiểu số) ---
+			const calculateScores = (sessions) => {
 				if (!sessions || sessions.length === 0) return [];
 				
 				const scoresMap = {};
-
 				sessions.forEach(session => {
 					if (Array.isArray(session.finalResults)) {
 						session.finalResults.forEach(player => {
 							const { name, score } = player;
-							scoresMap[name] = (scoresMap[name] || 0) + score;
+							// Đảm bảo score là số nguyên
+							const safeScore = parseInt(score, 10) || 0; 
+							scoresMap[name] = (scoresMap[name] || 0) + safeScore;
 						});
 					}
 				});
 
-				const scoreboard = Object.keys(scoresMap).map(name => ({
+				return Object.keys(scoresMap).map(name => ({
 					name,
 					totalScore: scoresMap[name]
 				})).sort((a, b) => b.totalScore - a.totalScore); 
-
-				return scoreboard;
 			};
-            
-			// Đã loại bỏ formatSessionDate vì không còn dùng đến
 
 
 			function HistoryApp() {
 				const [sessions, setSessions] = useState(null);
 				const [loading, setLoading] = useState(true); 
 				const [loadError, setLoadError] = useState(null); 
+				
+				const [filterType, setFilterType] = useState('ALL');
 
-				// TỰ ĐỘNG TẢI LỊCH SỬ
 				useEffect(() => {
 					const loadHistory = async () => {
 						setLoading(true);
-						setLoadError(null);
 						try {
 							const data = await fetchHistoryFromGitHub();
 							setSessions(data);
 						} catch (err) {
-							console.error("Lỗi tải lịch sử:", err.message);
-							setLoadError("Lỗi khi tải dữ liệu lịch sử từ GitHub. Vui lòng kiểm tra kết nối mạng."); 
+							console.error(err);
+							setLoadError("Lỗi kết nối hoặc dữ liệu hỏng."); 
 						} finally {
 							setLoading(false);
 						}
 					};
-
 					loadHistory();
 				}, []);
 
-				const allTimeScores = useMemo(() => calculateAllTimeScores(sessions), [sessions]);
+				// --- LOGIC TỰ ĐỘNG CHỌN THÁNG THÔNG MINH ---
+				useEffect(() => {
+					if (sessions && sessions.length > 0 && filterType === 'ALL') { // Chỉ chạy 1 lần lúc đầu nếu filterType đang là 'ALL'
+						const currentMonthKey = getCurrentMonthKey();
+						
+						const monthsInData = new Set();
+						sessions.forEach(s => {
+                            const key = getSessionMonthKey(s);
+                            if(key !== 'UNKNOWN') monthsInData.add(key);
+                        });
+                        
+                        const availableMonthsList = Array.from(monthsInData).sort().reverse();
 
-				
-				// --- Giao diện Đang Tải ---
-				if (loading) {
-					return (
-						<div className="text-center p-8 min-h-[50vh] flex flex-col justify-center items-center">
-							<p className="font-semibold mb-4 text-blue-600 text-lg">Đang tải bảng xếp hạng...</p>
-							<div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto"></div>
-						</div>
-					);
-				}
+						if (monthsInData.has(currentMonthKey)) {
+							// Ưu tiên 1: Tháng hiện tại có dữ liệu -> Chọn nó
+							setFilterType(currentMonthKey);
+						} else if (availableMonthsList.length > 0) {
+							// Ưu tiên 2: Tháng hiện tại TRỐNG -> Chọn tháng MỚI NHẤT có dữ liệu
+							setFilterType(availableMonthsList[0]);
+						} else {
+							// Fallback: Không có ngày tháng hợp lệ -> Chọn ALL
+							setFilterType('ALL');
+						}
+					}
+				}, [sessions]);
 
-				// --- Giao diện Lỗi Tải ---
-				if (loadError && !sessions) { 
-					return (
-						<div className="text-center p-8 bg-red-100 border border-red-400 rounded-xl shadow-lg">
-							<p className="font-bold text-red-700 mb-3 text-2xl">❌ Lỗi Tải Dữ Liệu</p>
-							<p className="text-base text-gray-700">{loadError}</p>
-							<button 
-								onClick={() => window.location.reload()}
-								className="inline-block bg-purple-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-purple-700 transition mt-4 shadow-md text-lg">
-								🔄 Thử lại
-							</button>
-						</div>
-					);
-				}
+				// Lấy danh sách options cho Dropdown
+				const availableMonths = useMemo(() => {
+					if (!sessions) return [];
+					const monthsSet = new Set();
+					sessions.forEach(s => monthsSet.add(getSessionMonthKey(s)));
+					// Sắp xếp: Unknown xuống cuối, còn lại giảm dần theo ngày
+					return Array.from(monthsSet).sort((a, b) => {
+						if (a === 'UNKNOWN') return 1;
+						if (b === 'UNKNOWN') return -1;
+						return b.localeCompare(a);
+					});
+				}, [sessions]);
 
-				// --- Giao diện Chưa Có Dữ Liệu ---
-				if (!sessions || sessions.length === 0) {
-					return (
-						<div className="text-center p-8 bg-yellow-100 border border-yellow-400 rounded-xl shadow-lg">
-							<p className="font-bold text-yellow-700 text-2xl">🏆 Bảng Xếp Hạng Trống</p>
-							<p className="text-base text-gray-600 mt-2">Hãy hoàn thành một phiên chơi để tạo bảng xếp hạng đầu tiên.</p>
-							<a href="index.html" className="inline-block bg-blue-500 text-white px-5 py-2 rounded-lg font-bold hover:bg-blue-600 transition mt-4 shadow-md text-lg">
-								↩️ Quay lại Game
-							</a>
-						</div>
-					);
-				}
+				// Lọc dữ liệu
+				const filteredSessions = useMemo(() => {
+					if (!sessions) return [];
+					if (filterType === 'ALL') return sessions;
+					return sessions.filter(s => getSessionMonthKey(s) === filterType);
+				}, [sessions, filterType]);
 
-				// --- Giao diện Bảng Xếp Hạng ---
+				// Tính toán BXH
+				const leaderboard = useMemo(() => calculateScores(filteredSessions), [filteredSessions]);
+
+				// Render
+				if (loading) return (
+					<div className="text-center p-8 mt-10"><div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-500 mx-auto"></div><p className="mt-4 text-blue-600 font-semibold">Đang tổng hợp số liệu...</p></div>
+				);
+
+				if (loadError && !sessions) return (
+					<div className="text-center p-8 bg-red-100 border border-red-400 rounded-xl mt-10"><p className="text-red-700 font-bold">❌ {loadError}</p><button onClick={() => window.location.reload()} className="mt-4 bg-purple-600 text-white px-4 py-2 rounded">Thử lại</button></div>
+				);
+
 				return (
 					<div>
-						{/* Tiêu đề chính tập trung vào BXH */}
-						<h1 className="text-3xl font-extrabold text-center text-purple-700 mb-8">🏆 Bảng Xếp Hạng Tổng Điểm Toàn Thời Gian</h1>
-						
-						{/* BẢNG XẾP HẠNG TỔNG ĐIỂM TOÀN THỜI GIAN */}
-						<div className="mb-10 p-5 bg-blue-50 border border-blue-200 rounded-xl shadow-xl">
-							<h2 className="text-2xl font-bold text-blue-800 mb-4 text-center border-b pb-2">Danh sách Xếp Hạng</h2>
-							<div className="space-y-3">
-								{allTimeScores.map((p, index) => (
-									<div key={p.name} className={`flex justify-between items-center p-3 rounded-lg transition duration-150 ${index < 3 ? 'bg-yellow-200 font-extrabold border-l-4 border-yellow-600' : 'bg-white border hover:bg-gray-50'}`}>
-										
-										<div className="flex items-center text-xl flex-grow overflow-hidden">
-											
-											{/* Rank/Number Holder */}
-											<span className="font-extrabold w-10 text-right mr-3 flex-shrink-0">
-												{index === 0 && '🥇'}
-												{index === 1 && '🥈'}
-												{index === 2 && '🥉'}
-												{index >= 3 && <span className="text-gray-500">{index + 1}.</span>}
-											</span>
-											
-											{/* Player Name */}
-											<span className="truncate">
-												{p.name}
-											</span>
-										</div>
-										
-										{/* Score */}
-										<span className={`text-2xl font-extrabold ${p.totalScore >= 0 ? 'text-green-600' : 'text-red-600'} flex-shrink-0`}>
-											{p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore}
-										</span>
-									</div>
-								))}
-							</div>
-						</div>
+						<h1 className="text-2xl md:text-3xl font-extrabold text-center text-purple-700 mb-6 mt-4">
+                            {filterType === 'ALL' ? '🏆 BXH Tổng Sắp' : `🏆 BXH ${formatMonthDisplay(filterType).replace('🗓️ ', '')}`}
+                        </h1>
 
-						{/* ĐÃ LOẠI BỎ PHẦN CHI TIẾT CÁC PHIÊN */}
+                        {/* THANH ĐIỀU KHIỂN / BỘ LỌC */}
+                        <div className="flex justify-center mb-6">
+                            <div className="w-full max-w-sm px-4">
+                                <label className="block text-gray-600 text-xs font-bold mb-1 uppercase text-center tracking-wide">
+                                    Chọn mốc thời gian
+                                </label>
+                                <div className="relative">
+                                    <select 
+                                        value={filterType} 
+                                        onChange={(e) => setFilterType(e.target.value)}
+                                        className="custom-select block w-full bg-white border-2 border-blue-200 hover:border-blue-400 px-4 py-3 rounded-xl shadow-sm leading-tight focus:outline-none focus:border-blue-500 text-gray-800 font-bold text-lg transition-colors cursor-pointer"
+                                    >
+                                        <option value="ALL">🌟 Tất cả thời gian (Tổng)</option>
+                                        <optgroup label="Chi tiết theo tháng">
+                                            {availableMonths.map(monthKey => (
+                                                <option key={monthKey} value={monthKey}>
+                                                    {formatMonthDisplay(monthKey)}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <p className="text-center text-gray-400 text-xs mt-2 italic">
+                                    *Hệ thống tự động hiển thị tháng gần nhất có dữ liệu
+                                </p>
+                            </div>
+                        </div>
 						
-						<div className="text-center mt-8">
-							<a href="index.html" className="inline-block bg-blue-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-600 transition shadow-lg text-lg">
-								↩️ Quay lại Game
+						{/* HIỂN THỊ BXH */}
+                        {leaderboard.length === 0 ? (
+                             <div className="text-center p-10 bg-white border-2 border-dashed border-gray-300 rounded-xl mx-4">
+                                <p className="font-bold text-gray-400 text-xl">📭 Chưa có dữ liệu</p>
+                                <p className="text-gray-400 mt-2 text-sm">Không tìm thấy ván chơi nào trong khoảng thời gian này.</p>
+                                <button onClick={() => setFilterType('ALL')} className="mt-4 text-blue-500 hover:underline font-semibold">Xem tất cả thời gian</button>
+                            </div>
+                        ) : (
+                            <div className="mb-10 mx-auto max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 border-b border-gray-200 flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-lg font-bold text-gray-800 uppercase tracking-tight">Bảng Xếp Hạng</h2>
+                                        <p className="text-xs text-gray-500 font-medium mt-0.5">Dựa trên {filteredSessions.length} phiên chơi</p>
+                                    </div>
+                                    <div className="h-10 w-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-inner text-xl">👑</div>
+                                </div>
+                                
+                                <div className="divide-y divide-gray-100">
+                                    {leaderboard.map((p, index) => (
+                                        <div key={p.name} className={`flex justify-between items-center p-4 hover:bg-gray-50 transition-colors ${index < 3 ? 'bg-yellow-50/50' : ''}`}>
+                                            <div className="flex items-center flex-grow overflow-hidden mr-4">
+                                                <div className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full mr-3 font-bold text-sm ${
+                                                    index === 0 ? 'bg-yellow-400 text-yellow-900 shadow-sm' :
+                                                    index === 1 ? 'bg-gray-300 text-gray-800 shadow-sm' :
+                                                    index === 2 ? 'bg-orange-300 text-orange-900 shadow-sm' :
+                                                    'bg-gray-100 text-gray-500'
+                                                }`}>
+                                                    {index + 1}
+                                                </div>
+                                                <span className={`truncate text-lg ${index < 3 ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
+                                                    {p.name}
+                                                </span>
+                                            </div>
+                                            
+                                            <div className={`text-xl font-bold font-mono tracking-tight ${p.totalScore > 0 ? 'text-green-600' : p.totalScore < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                                {p.totalScore > 0 ? `+${p.totalScore}` : p.totalScore}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+						<div className="text-center pb-10">
+							<a href="index.html" className="inline-flex items-center bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-900 transition shadow-lg text-sm uppercase tracking-wider transform hover:-translate-y-0.5">
+								<span className="mr-2">⬅️</span> Quay lại bàn chơi
 							</a>
 						</div>
 					</div>
@@ -241,5 +283,4 @@
 			root.render(<HistoryApp />);
 		</script>
 </body>
-</html>
-
+</html>v
