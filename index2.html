@@ -247,11 +247,12 @@
 				
 				// --- KẾT THÚC LOGIC AUDIO ĐÃ ĐIỀU CHỈNH ---
 				
-				// --- LOGIC WAKE LOCK / SCREEN TIMEOUT (ĐÃ SỬA LỖI ĐỂ TẮT ĐÚNG GIỜ) ---
-				// --- LOGIC WAKE LOCK / SCREEN TIMEOUT (ĐÃ SỬA LỖI ĐỂ TẮT ĐÚNG GIỜ) ---
+				// --- LOGIC WAKE LOCK / SCREEN TIMEOUT (CHỈ DÙNG GHI ĐIỂM) ---
 				// Sử dụng useRef để lưu trữ tham chiếu sentinel và timer
 				const wakeLockRef = useRef(null);
 				const timeoutTimerRef = useRef(null);
+				// THÊM MỚI: Ref để truy cập hàm reset timer từ bên ngoài (executeRecord)
+				const resetTimerCallbackRef = useRef(() => {}); 
 
 				useEffect(() => {
 					// Hàm hủy khóa (Cho phép màn hình tắt)
@@ -287,11 +288,11 @@
 						}
 					};
 
-					// Hàm xử lý khi có tương tác (Reset timer)
+					// Hàm xử lý khi có tương tác (Reset timer) - Bây giờ chỉ được gọi nội bộ hoặc qua ref
 					const handleActivity = () => {
 						if (screenTimeout === 0) return;
 
-						// Mỗi khi chạm vào, nếu chưa khóa thì khóa lại (để màn hình sáng lên)
+						// Mỗi khi gọi, nếu chưa khóa thì khóa lại (để màn hình sáng lên)
 						if (!wakeLockRef.current) {
 							requestLock();
 						}
@@ -306,18 +307,17 @@
 							releaseLock();
 						}, screenTimeout * 1000);
 					};
+					
+					// Gắn hàm handleActivity vào ref để có thể gọi từ executeRecord
+					resetTimerCallbackRef.current = handleActivity; 
 
 					// Khởi chạy
 					if (screenTimeout > 0) {
-						// Kích hoạt ngay lần đầu
+						// Kích hoạt ngay lần đầu: Yêu cầu khóa và bắt đầu đếm ngược
 						requestLock();
-						handleActivity();
+						handleActivity(); 
 
-						// Lắng nghe sự kiện để reset timer
-						window.addEventListener('click', handleActivity);
-						window.addEventListener('touchstart', handleActivity);
-						window.addEventListener('keydown', handleActivity);
-						// LƯU Ý: ĐÃ LOẠI BỎ 'mousemove' ĐỂ TRÁNH BỊ RESET TIMER LIÊN TỤC
+						// LƯU Ý: ĐÃ LOẠI BỎ TẤT CẢ window.addEventListener(...) 
 					} else {
 						// Nếu chuyển về 0 (Mặc định), thả khóa ngay và xóa timer
 						if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
@@ -328,13 +328,12 @@
 					return () => {
 						if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
 						releaseLock();
-						window.removeEventListener('click', handleActivity);
-						window.removeEventListener('touchstart', handleActivity);
-						window.removeEventListener('keydown', handleActivity);
-						// LƯU Ý: ĐÃ LOẠI BỎ 'mousemove' KHỎI CLEANUP
+						// LƯU Ý: ĐÃ LOẠI BỎ TẤT CẢ window.removeEventListener(...)
 					};
 				}, [screenTimeout]); 
 				// --- KẾT THÚC LOGIC WAKE LOCK ---
+
+
 				  // Tính toán trạng thái vòng đấu
 				  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
 				  const currentRound = recordedRounds + 1;
@@ -369,7 +368,7 @@
 						  }))
 					  ];
 					  
-					  // CẬP NHẬT: Lấy endTime (Thời gian kết thúc)
+					  // Lấy endTime (Thời gian kết thúc)
 					  const endTime = new Date().toISOString(); 
 					  
 					  const sessionData = {
@@ -445,7 +444,7 @@
 					  
 					  // 3. Chuẩn bị nội dung mới
 					  const updatedHistory = [newSessionEntry, ...existingHistory]; // Thêm mới lên đầu
-					  // LỖI XẢY RA Ở ĐÂY: SỬ DỤNG HÀM AN TOÀN KHI ENCODE
+					  // SỬ DỤNG HÀM AN TOÀN KHI ENCODE
 					  const newContent = unicodeToB64(JSON.stringify(updatedHistory, null, 2));
 
 					  // 4. Commit lên GitHub
@@ -613,7 +612,7 @@
 					setModal({ type: 'record', data: null });
 				  };
 
-				  // Hàm thực hiện ghi điểm (executeRecord)
+				  // Hàm thực hiện ghi điểm (executeRecord) - ĐÃ CHÈN LOGIC WAKE LOCK
 				  const executeRecord = () => {
 					setModal({ type: null, data: null });
 
@@ -625,9 +624,15 @@
 					  if (p.name === winner) return { ...p, score: p.score + totalWin };
 					  return { ...p, score: p.score - pointPerLoser };
 					});
+					
+					// *** BỔ SUNG: GỌI HÀM RESET TIMER KHI GHI ĐIỂM ***
+					// Kiểm tra nếu screenTimeout > 0 và hàm reset tồn tại
+					if (screenTimeout > 0 && resetTimerCallbackRef.current) {
+						 resetTimerCallbackRef.current(); 
+					}
+					// *** KẾT THÚC BỔ SUNG ***
 
 					// *** THÊM MỚI: Ghi startTime nếu là ván 1 ***
-					// (recordedRounds là số ván đã ghi TRƯỚC VÁN NÀY)
 					if (recordedRounds === 0) { 
 						setStartTime(new Date().toISOString());
 					}
@@ -712,7 +717,6 @@
 					
 					const undoEvent = { 
 						type: "undo", 
-						// SỬA LỖI TYPO TỪ undoRoundOnum THÀNH undoRoundNum
 						targetRound: undoRoundNum, 
 						undoChanges: lastRecord.changes, 
 						undoWinner: lastRecord.winner,
@@ -878,12 +882,10 @@
 							</div>
 						  </div>
 						)}
-
-					  {/* ĐÃ LOẠI BỎ TIÊU ĐỀ 90% NGƯỜI CHƠI... */}
 					  
 					  {/* TÙY CHỌN MÀN HÌNH WAKE LOCK */}
 					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
-						  <label className="text-sm text-gray-600 font-semibold">💡 Timeout:</label>
+						  <label className="text-sm text-gray-600 font-semibold">💡 Timeout màn hình:</label>
 						  <select 
 							className="border rounded text-sm px-2 py-1 bg-gray-50 focus:ring-2 focus:ring-green-400 outline-none"
 							value={screenTimeout}
@@ -1292,4 +1294,3 @@
 			  </script>
 </body>
 </html>
-
