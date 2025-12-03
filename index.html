@@ -118,9 +118,12 @@
 				// --------------------------------------------------------------------------------------
 				
 				// --- CẬP NHẬT: SVG ICONS CHO WAKE LOCK ---
+				
+				// TĂNG KÍCH THƯỚC: w-6 h-6
+				
 				// SVG Bóng đèn TẮT (Màu xám, mờ)
 				const LightbulbOff = () => (
-					<svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<svg className="w-6 h-6 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 						{/* Body - fill: current color (gray), opacity: 0.4 */}
 						<path d="M12 2a6 6 0 0 0-4 10c0 2 1 3 1 3h6s1-1 1-3a6 6 0 0 0-4-10z" fill="currentColor" opacity="0.4"/>
 						{/* Filament - stroke: current color, opacity: 0.5 */}
@@ -132,7 +135,7 @@
 				
 				// SVG Bóng đèn BẬT (Màu vàng sáng, có shadow)
 				const LightbulbOn = () => (
-					<svg className="w-5 h-5 drop-shadow-md" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<svg className="w-6 h-6 drop-shadow-md" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 						{/* Glow/Halo effect - White stroke around body */}
 						<path d="M12 2a6 6 0 0 0-4 10c0 2 1 3 1 3h6s1-1 1-3a6 6 0 0 0-4-10z" fill="#FBBF24" className="stroke-white stroke-1"/> 
 						{/* Filament - stroke: orange */}
@@ -882,16 +885,16 @@
 						  </div>
 						)}
 					  
-					  {/* CẬP NHẬT: Giao diện Keep Screen Light dùng SVG */}
+					  {/* CẬP NHẬT: Giao diện Keep Screen Light dùng SVG - BỎ KHUNG, CHỈ GIỮ BÓNG ĐÈN */}
 					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
 						  <label className="text-sm text-gray-600 font-semibold">Keep Screen Light:</label>
 						  <button
-							  className={`px-3 py-1 rounded text-sm font-bold transition-all flex items-center justify-center ${
-								  isWakeLockEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-gray-700"
-							  }`}
+							  // Bỏ các class px-3 py-1 rounded, chỉ giữ lại hover/tập trung
+							  className={`transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-opacity-50 
+								  ${isWakeLockEnabled ? "focus:ring-green-500" : "focus:ring-gray-400"}
+							  `}
 							  onClick={() => setIsWakeLockEnabled(!isWakeLockEnabled)}
 						  >
-							  {/* Thay thế Emoji bằng SVG component */}
 							  {isWakeLockEnabled ? <LightbulbOn /> : <LightbulbOff />} 
 						  </button>
 					  </div>
@@ -903,98 +906,97 @@
 						</div>
 					  )}
 
-					  {/* *** CUSTOM DROPDOWN SELECTOR *** */}
-					  <div className="relative mb-3 z-20"> 
-						  {/* Toggle Button/Display Line */}
-						  <button
-							  className={`w-full text-left border rounded-lg px-3 py-2 bg-white text-sm font-semibold flex justify-between items-center transition-all ${
-								  isAddPlayerDisabled ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "hover:bg-gray-100"
-							  }`}
-							  onClick={() => {
-								  if (!isAddPlayerDisabled) {
-									  // Nếu mở, reset selectedPlayerNames nếu đã đạt maxSelection
-									  if (!isDropdownOpen && maxNewSelection === 0) {
-										  showTempMessage("⚠️ Đã đủ 5 người chơi!", "warning");
-										  return;
+					  {/* *** CUSTOM DROPDOWN SELECTOR - ẨN KHI ĐỦ 5 NGƯỜI *** */}
+					  {!isMaxPlayers && (
+						  <div className="relative mb-3 z-20"> 
+							  {/* Toggle Button/Display Line */}
+							  <button
+								  className={`w-full text-left border rounded-lg px-3 py-2 bg-white text-sm font-semibold flex justify-between items-center transition-all ${
+									  isAddPlayerDisabled ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "hover:bg-gray-100"
+								  }`}
+								  onClick={() => {
+									  if (!isAddPlayerDisabled) {
+										  // Nếu mở, reset selectedPlayerNames nếu đã đạt maxSelection
+										  if (!isDropdownOpen && maxNewSelection === 0) {
+											  showTempMessage("⚠️ Đã đủ 5 người chơi!", "warning");
+											  return;
+										  }
+										  setIsDropdownOpen(!isDropdownOpen);
 									  }
-									  setIsDropdownOpen(!isDropdownOpen);
-								  }
-							  }}
-							  disabled={isAddPlayerDisabled}
-						  >
-							  {isMaxPlayers ? (
-								  <span className="text-red-500">Full slot (5 người)</span>
-							  ) : (
+								  }}
+								  disabled={isAddPlayerDisabled}
+							  >
+								  {/* Đã kiểm tra isMaxPlayers ở bên ngoài nên không cần hiển thị Full Slot ở đây */}
 								  <span>
 									  {selectedPlayerNames.length > 0 
 										  ? `Đã chọn (${selectedPlayerNames.length} người) - Còn ${maxNewSelection - selectedPlayerNames.length} slot` 
 										  : `Chọn người chơi (Còn ${maxNewSelection} slot)`}
 								  </span>
-							  )}
+								  
+								  {/* Dropdown Icon */}
+								  <svg 
+									  className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
+									  fill="none" 
+									  stroke="currentColor" 
+									  viewBox="0 0 24 24" 
+									  xmlns="http://www.w3.org/2000/svg"
+								  >
+									  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+								  </svg>
+							  </button>
 							  
-							  {/* Dropdown Icon */}
-							  <svg 
-								  className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
-								  fill="none" 
-								  stroke="currentColor" 
-								  viewBox="0 0 24 24" 
-								  xmlns="http://www.w3.org/2000/svg"
-							  >
-								  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-							  </svg>
-						  </button>
-						  
-						  {/* Dropdown List Content (Đã bỏ max-h để hiển thị full danh sách) */}
-						  {isDropdownOpen && !isMaxPlayers && (
-							  <div 
-								  className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-white shadow-xl w-full text-sm overflow-y-auto" // Đã bỏ max-h để hiển thị full danh sách
-								  style={{ WebkitOverflowScrolling: 'touch' }} 
-							  >
-								  {availablePlayerNames.map(name => {
-									  const isKicked = kickedPlayers.some(p => p.name === name);
-									  const isSelected = selectedPlayerNames.includes(name);
-									  
-									  // Logic vô hiệu hóa từng dòng khi đạt maxNewSelection
-									  const isSelectionDisabled = !isSelected && selectedPlayerNames.length >= maxNewSelection;
+							  {/* Dropdown List Content */}
+							  {isDropdownOpen && !isMaxPlayers && (
+								  <div 
+									  className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-white shadow-xl w-full text-sm overflow-y-auto" 
+									  style={{ WebkitOverflowScrolling: 'touch' }} 
+								  >
+									  {availablePlayerNames.map(name => {
+										  const isKicked = kickedPlayers.some(p => p.name === name);
+										  const isSelected = selectedPlayerNames.includes(name);
+										  
+										  // Logic vô hiệu hóa từng dòng khi đạt maxNewSelection
+										  const isSelectionDisabled = !isSelected && selectedPlayerNames.length >= maxNewSelection;
 
-									  return (
-										  <div
-											  key={name} 
-											  className={`px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0 flex justify-between items-center ${
-												  isSelectionDisabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : 
-												  isSelected ? "bg-blue-100 text-blue-800 font-bold hover:bg-blue-200" : 
-												  "hover:bg-gray-50"
-											  }`}
-											  onClick={() => !isSelectionDisabled && togglePlayerSelection(name)}
-										  >
-											  <span>
-												  {name} {isKicked ? " (Quay lại)" : ""}
-											  </span>
-											  {isSelected && (
-												  <svg className="w-4 h-4 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-													  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-												  </svg>
-											  )}
-											  {isSelectionDisabled && (
-												  <span className='text-xs text-red-400'>Max</span>
-											  )}
-										  </div>
-									  );
-								  })}
-							  </div>
-						  )}
+										  return (
+											  <div
+												  key={name} 
+												  className={`px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0 flex justify-between items-center ${
+													  isSelectionDisabled ? "bg-gray-50 text-gray-400 cursor-not-allowed" : 
+													  isSelected ? "bg-blue-100 text-blue-800 font-bold hover:bg-blue-200" : 
+													  "hover:bg-gray-50"
+												  }`}
+												  onClick={() => !isSelectionDisabled && togglePlayerSelection(name)}
+											  >
+												  <span>
+													  {name} {isKicked ? " (Quay lại)" : ""}
+												  </span>
+												  {isSelected && (
+													  <svg className="w-4 h-4 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+														  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+													  </svg>
+												  )}
+												  {isSelectionDisabled && (
+													  <span className='text-xs text-red-400'>Max</span>
+												  )}
+											  </div>
+										  );
+									  })}
+								  </div>
+							  )}
 
-						  {/* Add Player Button */}
-						  <button
-							  className={`mt-2 w-full px-4 py-2 rounded-lg text-white font-bold transition-colors ${
-								  isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
-							  }`}
-							  onClick={addPlayer}
-							  disabled={isAddPlayerDisabled || selectedPlayerNames.length === 0}
-						  >
-							  Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
-						  </button>
-					  </div>
+							  {/* Add Player Button */}
+							  <button
+								  className={`mt-2 w-full px-4 py-2 rounded-lg text-white font-bold transition-colors ${
+									  isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
+								  }`}
+								  onClick={addPlayer}
+								  disabled={isAddPlayerDisabled || selectedPlayerNames.length === 0}
+							  >
+								  Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
+							  </button>
+						  </div>
+					  )}
 					  {/* END CUSTOM DROPDOWN SELECTOR */}
 
 					  {/* Danh sách người chơi */}
