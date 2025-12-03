@@ -248,6 +248,7 @@
 				// --- KẾT THÚC LOGIC AUDIO ĐÃ ĐIỀU CHỈNH ---
 				
 				// --- LOGIC WAKE LOCK / SCREEN TIMEOUT (ĐÃ SỬA LỖI ĐỂ TẮT ĐÚNG GIỜ) ---
+				// --- LOGIC WAKE LOCK / SCREEN TIMEOUT (ĐÃ SỬA LỖI ĐỂ TẮT ĐÚNG GIỜ) ---
 				// Sử dụng useRef để lưu trữ tham chiếu sentinel và timer
 				const wakeLockRef = useRef(null);
 				const timeoutTimerRef = useRef(null);
@@ -316,7 +317,7 @@
 						window.addEventListener('click', handleActivity);
 						window.addEventListener('touchstart', handleActivity);
 						window.addEventListener('keydown', handleActivity);
-						window.addEventListener('mousemove', handleActivity);
+						// LƯU Ý: ĐÃ LOẠI BỎ 'mousemove' ĐỂ TRÁNH BỊ RESET TIMER LIÊN TỤC
 					} else {
 						// Nếu chuyển về 0 (Mặc định), thả khóa ngay và xóa timer
 						if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
@@ -330,12 +331,10 @@
 						window.removeEventListener('click', handleActivity);
 						window.removeEventListener('touchstart', handleActivity);
 						window.removeEventListener('keydown', handleActivity);
-						window.removeEventListener('mousemove', handleActivity);
+						// LƯU Ý: ĐÃ LOẠI BỎ 'mousemove' KHỎI CLEANUP
 					};
 				}, [screenTimeout]); 
 				// --- KẾT THÚC LOGIC WAKE LOCK ---
-
-
 				  // Tính toán trạng thái vòng đấu
 				  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
 				  const currentRound = recordedRounds + 1;
