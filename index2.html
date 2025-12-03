@@ -117,6 +117,8 @@
 				  
 				  const [doubleMusic, setDoubleMusic] = useState(null); 
 				  
+				  // *** CẬP NHẬT: State điều khiển đóng/mở Dropdown ***
+				  const [isDropdownOpen, setIsDropdownOpen] = useState(false); 
 				
 				const slugifyPlayerName = (name) => {
 					return name
@@ -408,7 +410,6 @@
 					setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
 				  };
 
-				  // *** FIX: Logic BẬT/TẮT chọn người chơi (Custom List) ***
 				  const togglePlayerSelection = (name) => {
 					  setSelectedPlayerNames(prev => {
 						  if (prev.includes(name)) {
@@ -418,7 +419,6 @@
 						  }
 					  });
 				  };
-				  // *** END FIX ***
 				  
 				  const addPlayer = () => {
 					const namesToAdd = selectedPlayerNames.filter(name => name.trim() !== "");
@@ -457,6 +457,8 @@
 						setKickedPlayers(newKickedPlayers);
 						setPlayers(newPlayers);
 						setSelectedPlayerNames([]); 
+						// Đóng dropdown sau khi thêm thành công
+						setIsDropdownOpen(false); 
 						showTempMessage(`✅ Đã thêm ${addedCount} người chơi!`, "info");
 					} else {
 						setSelectedPlayerNames([]); 
@@ -483,6 +485,7 @@
 					clear9CayStorage(); 
 					setModal({ type: null, data: null });
 					setSelectedPlayerNames([]); 
+					setIsDropdownOpen(false); // Đảm bảo đóng dropdown
 				  };
 				  
 				const settleGame = () => {
@@ -782,57 +785,82 @@
 						</div>
 					  )}
 
-					  {/* *** FIX: Custom Multi-select List (Thay thế select multiple) *** */}
-					  <div className="flex flex-col gap-2 mb-3">
-						<div 
-                            // Giới hạn chiều cao cho giao diện di động
-                            className={`border rounded-lg bg-white w-full text-sm overflow-y-auto ${
-                                isMaxPlayers ? 'h-10 flex items-center justify-center text-gray-500 font-bold' : 'max-h-[160px]'
-                            }`}
-                            style={{ WebkitOverflowScrolling: 'touch' }} 
-                        >
-							{/* Case 1: Full Slot */}
-							{isMaxPlayers ? (
-								<div className='px-3 py-2 text-red-500 font-bold text-center'>Full slot</div>
-							) : (
-								/* Case 2: Not Full Slot */
-								<>
-									{/* Default prompt: "Chọn người chơi" */}
-									{availablePlayerNames.length === 0 && (
-										<div className='px-3 py-2 text-gray-500 font-semibold bg-gray-100'>Chọn người chơi</div>
-									)}
+					  {/* *** CẬP NHẬT: CUSTOM DROPDOWN SELECTOR *** */}
+					  <div className="relative mb-3 z-20"> 
+						  {/* Toggle Button/Display Line */}
+						  <button
+							  className={`w-full text-left border rounded-lg px-3 py-2 bg-white text-sm font-semibold flex justify-between items-center transition-all ${
+								  isAddPlayerDisabled ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "hover:bg-gray-100"
+							  }`}
+							  onClick={() => !isAddPlayerDisabled && setIsDropdownOpen(!isDropdownOpen)}
+							  disabled={isAddPlayerDisabled}
+						  >
+							  {isMaxPlayers ? (
+								  <span className="text-red-500">Full slot</span>
+							  ) : (
+								  <span>
+									  {selectedPlayerNames.length > 0 
+										  ? `Đã chọn (${selectedPlayerNames.length} người)` 
+										  : "Chọn người chơi"}
+								  </span>
+							  )}
+							  
+							  {/* Dropdown Icon */}
+							  <svg 
+								  className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : 'rotate-0'}`} 
+								  fill="none" 
+								  stroke="currentColor" 
+								  viewBox="0 0 24 24" 
+								  xmlns="http://www.w3.org/2000/svg"
+							  >
+								  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+							  </svg>
+						  </button>
+						  
+						  {/* Dropdown List Content */}
+						  {isDropdownOpen && !isMaxPlayers && (
+							  <div 
+								  className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-white shadow-xl w-full text-sm overflow-y-auto max-h-[200px]"
+								  style={{ WebkitOverflowScrolling: 'touch' }} 
+							  >
+								  {/* Render selectable names */}
+								  {availablePlayerNames.map(name => {
+									  const isKicked = kickedPlayers.some(p => p.name === name);
+									  const isSelected = selectedPlayerNames.includes(name);
+									  return (
+										  <div
+											  key={name} 
+											  className={`px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0 flex justify-between items-center ${
+												  isSelected ? "bg-blue-100 text-blue-800 font-bold" : "hover:bg-gray-50"
+											  }`}
+											  onClick={() => togglePlayerSelection(name)}
+										  >
+											  <span>
+												  {name} {isKicked ? " (Quay lại)" : ""}
+											  </span>
+											  {isSelected && (
+												  <svg className="w-4 h-4 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+													  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+												  </svg>
+											  )}
+										  </div>
+									  );
+								  })}
+							  </div>
+						  )}
 
-									{/* Render selectable names */}
-									{availablePlayerNames.map(name => {
-										const isKicked = kickedPlayers.some(p => p.name === name);
-										const isSelected = selectedPlayerNames.includes(name);
-										return (
-											<div
-												key={name} 
-												className={`px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0 ${
-													isSelected ? "bg-blue-500 text-white font-bold" : "hover:bg-gray-100"
-												} ${isAddPlayerDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
-												onClick={() => !isAddPlayerDisabled && togglePlayerSelection(name)}
-												// Không dùng 'disabled' attribute cho div, dùng class và logic onClick
-											>
-												{name} {isKicked ? " (Quay lại)" : ""}
-											</div>
-										);
-									})}
-								</>
-							)}
-						</div>
-						<button
-						  className={`px-4 py-2 rounded-lg text-white font-bold ${
-							isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
-						  }`}
-						  onClick={addPlayer}
-						  disabled={isAddPlayerDisabled || selectedPlayerNames.length === 0}
-						>
-							Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
-						</button>
+						  {/* Add Player Button */}
+						  <button
+							  className={`mt-2 w-full px-4 py-2 rounded-lg text-white font-bold transition-colors ${
+								  isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
+							  }`}
+							  onClick={addPlayer}
+							  disabled={isAddPlayerDisabled || selectedPlayerNames.length === 0}
+						  >
+							  Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
+						  </button>
 					  </div>
-					  {/* END FIX: Custom Multi-select List */}
+					  {/* END CẬP NHẬT: CUSTOM DROPDOWN SELECTOR */}
 
 					  {/* Danh sách người chơi */}
 					  {players.length === 0 ? (
