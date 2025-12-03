@@ -896,7 +896,7 @@
 							  </div>
 							  
 							  {messageWinner && messageType === "success" && (
-								  <div className="text-red-600 text-2xl font-bold mt-1">
+								  <div className="text-red-600 text-lg font-bold mt-1">
 									  {messageWinner}
 								  </div>
 							  )}
@@ -1039,7 +1039,7 @@
 							{[...players].sort((a, b) => b.score - a.score).map((p, i) => (
 							  <li
 								key={p.name} 
-								className={`flex justify-between items-center border rounded-lg px-4 py-3 transition ${ /* Tăng Padding */
+								className={`flex justify-between items-center border rounded-lg px-2 py-2 transition ${ /* Tăng Padding */
 								  winner === p.name 
 									? "winner-glow font-semibold" 
 									// CẬP NHẬT: Thêm Dark Mode cho item không phải Winner
@@ -1401,3 +1401,4 @@
 			  </script>
 </body>
 </html>
+
