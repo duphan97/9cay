@@ -228,14 +228,27 @@
 				
 				// --- KẾT THÚC LOGIC AUDIO ---
 				
-				// --- LOGIC WAKE LOCK ĐƠN GIẢN (BẬT/TẮT) ---
+				// --- LOGIC WAKE LOCK ĐƠN GIẢN (BẬT/TẮT) - ĐÃ FIX BUG STALE STATE ---
+				
+				// Ref để giữ Sentinel (đối tượng khóa)
 				const wakeLockRef = useRef(null);
-
+				// Ref để giữ trạng thái isWakeLockEnabled mới nhất
+				const isWakeLockEnabledRef = useRef(isWakeLockEnabled); 
+				
 				useEffect(() => {
+					// 1. Cập nhật Ref với trạng thái mới nhất
+					isWakeLockEnabledRef.current = isWakeLockEnabled;
+
 					// Hàm hủy khóa (Cho phép màn hình tắt)
 					const releaseLock = async () => {
 						if (wakeLockRef.current) {
 							try {
+								// Xóa listener trước khi release để tránh việc nó tự request lại khi release thủ công
+								if (wakeLockRef.current.removeEventListener) {
+									// CÁCH TỐT NHẤT LÀ REMOVE LISTENER, nhưng WakeLockSentinel không có removeEventListener
+									// Do đó, ta sẽ dựa vào Ref isWakeLockEnabledRef.current
+								}
+								
 								await wakeLockRef.current.release();
 								wakeLockRef.current = null;
 								console.log("Wake Lock released: System default timeout.");
@@ -254,13 +267,17 @@
 							const sentinel = await navigator.wakeLock.request('screen');
 							wakeLockRef.current = sentinel;
 							
-							// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null
+							// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null và cố gắng khóa lại
 							sentinel.addEventListener('release', () => {
 								wakeLockRef.current = null;
-								// Nếu bị hệ thống ngắt, cố gắng khóa lại nếu tính năng đang bật
-								if (isWakeLockEnabled) {
+								
+								// ** SỬ DỤNG REF MỚI NHẤT ĐỂ KIỂM TRA **
+								// Chỉ request lại nếu tính năng đang BẬT (tránh bug re-request khi TẮT)
+								if (isWakeLockEnabledRef.current) { 
+									console.log("Wake Lock re-requested by system...");
 									requestLock();
 								}
+								// Nếu isWakeLockEnabledRef.current là false, nó sẽ không request lại (HÀNH VI CHÍNH XÁC)
 							});
 							console.log("Wake Lock requested: Screen kept awake.");
 
@@ -277,12 +294,12 @@
 						releaseLock();
 					}
 
-					// Cleanup: Luôn thả khóa khi component unmount hoặc khi isWakeLockEnabled đổi
+					// Cleanup: Luôn thả khóa khi component unmount
 					return () => {
 						releaseLock();
 					};
-				}, [isWakeLockEnabled]); 
-				// --- KẾT THÚC LOGIC WAKE LOCK ---
+				}, [isWakeLockEnabled]); // [isWakeLockEnabled] là dependency
+				// --- KẾT THÚC LOGIC WAKE LOCK ĐÃ FIX ---
 
 
 				  // Tính toán trạng thái vòng đấu
@@ -329,7 +346,7 @@
 						  endTime: endTime, // Thời gian kết thúc (lúc lưu)
 						  totalRoundsSet: totalRounds,
 						  roundsPlayed: history.filter(h => h.type === "record").length,
-						  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
+						  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CÙNG
 					  };
 					  
 					  return sessionData;
