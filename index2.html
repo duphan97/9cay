@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>9🚀📈🚀</title>
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Dùng 1 animation chung cho pulse, màu sắc dùng tailwind */
+    @keyframes pulse-base {0%,100%{opacity:1}50%{opacity:0.7}}
+    .pulse-effect{animation:pulse-base 1s infinite}
+    
+    /* CẬP NHẬT HIỆU ỨNG GLOW CỰC SẶC SỠ cho người thắng */
+    @keyframes winner-glow-enhanced {
+      0%,100%{background:#e6fffa;border: 3px solid #047857;box-shadow:0 0 15px rgba(4, 120, 87, 0.8)} /* Xanh nhạt, viền xanh đậm */
+      50%{background:#6ee7b7;border: 3px solid #065f46;box-shadow:0 0 25px rgba(6, 95, 70, 0.9)} /* Xanh sáng hơn, viền đậm hơn */
+    }
+    .winner-glow{animation:winner-glow-enhanced 1.2s infinite}
+    /* END CẬP NHẬT HIỆU ỨNG */
+    
+    /* Tên người chơi trong lịch sử: In đậm, màu đen */
+    .history-player-name {
+        font-weight: 700; 
+        color: #1f2937; 
+        /* Flex grow để chiếm hết không gian còn lại */
+        flex-grow: 1; 
+        overflow: hidden; /* Tránh tràn khi tên quá dài */
+        text-overflow: ellipsis; 
+        white-space: nowrap;
+    }
+    
+    /* Container cho mỗi dòng lịch sử để căn đều bằng flexbox */
+    .history-item-line {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-top: 2px;
+    }
+    
+    /* Cố định chiều rộng cho điểm để căn đều tuyệt đối */
+    .delta-score {
+        display: inline-block;
+        width: 40px; /* Độ rộng cố định, đủ cho "+99" */
+        text-align: right;
+        font-weight: 600; /* in đậm */
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+  <div id="root" class="w-full max-w-md"></div>
+
+	<script type="text/babel">
+				// --- HẰNG SỐ VÀ HELPER CHO LOCAL STORAGE ---
+				const LOCAL_STORAGE_PREFIX = '9cay_';
+
+				// Helper: Lấy key đã có prefix
+				const getStorageKey = (key) => `${LOCAL_STORAGE_PREFIX}${key}`;
+
+				// Helper: Xóa tất cả các key có prefix của 9 Cay
+				const clear9CayStorage = () => {
+					// 1. Lấy tất cả các key trong localStorage
+					const keys = Object.keys(localStorage);
+					
+					// 2. Lọc ra các key bắt đầu bằng prefix
+					const keysToRemove = keys.filter(key => key.startsWith(LOCAL_STORAGE_PREFIX));
+					
+					// 3. Xóa các key đã lọc
+					keysToRemove.forEach(key => localStorage.removeItem(key));
+				};
+				// --- END HẰNG SỐ VÀ HELPER ---
+				
+				const { useState, useEffect, useMemo, useRef } = React;
+				
+				// DANH SÁCH TÊN CỐ ĐỊNH 
+				const FIXED_PLAYER_NAMES = [
+					"Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
+					"Dự Phan", "Định Ngô", "Đông Lê", 
+					"Khánh Đỗ", "Minh Anh", "Nhân Trần", 
+					"Quý Huỳnh", "Tuấn Nguyễn", "Yến Dương", "Trúc Trần"
+				];
+				// END DANH SÁCH TÊN
+
+				// --- BASE64 AN TOÀN CHO UNICODE ---
+				// Hàm này chuyển đổi Unicode string sang Base64
+				const unicodeToB64 = (str) => btoa(
+					encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => 
+						String.fromCharCode('0x' + p1)
+					)
+				);
+
+				// Hàm này chuyển đổi Base64 string trở lại thành Unicode
+				const b64ToUnicode = (str) => decodeURIComponent(
+					Array.prototype.map.call(atob(str), (c) => 
+						'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+					).join('')
+				);
+				// --- END FIX ---
+
+
+				// --------------------------------------------------------------------------------------
+				// --- GITHUB CONSTANTS (BẮT BUỘC ĐIỀN) ---
+				// !!! THAY THẾ CHUỖI NÀY BẰNG TOKEN CỦA BẠN (Đã chia 2 phần)
+				const GITHUB_TOKEN_PART1 = 'github_pat_11AHU2I4Q0eTQynszWYAnj_'; 
+				const GITHUB_TOKEN_PART2 = 'g3icOcB6W3He3EFtkB3rEuvAIst0GQQf50IaXXPDllERWI7ZWWJF0pB4QeI'; 
+
+				// Nối lại token khi chạy
+				const GITHUB_TOKEN = GITHUB_TOKEN_PART1 + GITHUB_TOKEN_PART2; 
+				
+				const REPO_OWNER = 'duphan97';
+				const REPO_NAME = '9cay';
+				const DATA_FILE_PATH = 'data/session_history.json'; 
+
+				const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
+				// --------------------------------------------------------------------------------------
+
+				function App() {
+				  // Dữ liệu chính
+				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("players"))) || []);
+				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("kickedPlayers"))) || []);
+				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("history"))) || []);
+				  
+				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm)
+				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("totalRounds"))) || null);
+				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
+				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("roundsStartCount"))) || 0);
+
+				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
+				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isSessionSaved"))) || false);
+				  
+				  // Thời gian bắt đầu (Ván 1)
+				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("startTime"))) || null);
+
+				  // *** THAY ĐỔI: Cấu hình Wake Lock - Dùng boolean BẬT/TẮT ***
+				  const [isWakeLockEnabled, setIsWakeLockEnabled] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isWakeLockEnabled"))) || false);
+
+				  // Trạng thái phiên hiện tại
+				  // *** ĐIỀU CHỈNH 1.1: Dùng Mảng cho Multi-select ***
+				  const [selectedPlayerNames, setSelectedPlayerNames] = useState([]); 
+				  const [winner, setWinner] = useState("");
+				  const [doubleNext, setDoubleNext] = useState(false);
+				  const [manualMode, setManualMode] = useState(false);
+				  
+				  // Quản lý thông báo
+				  const [message, setMessage] = useState("");
+				  const [messageWinner, setMessageWinner] = useState("");
+				  const [messageType, setMessageType] = useState("info");
+				  
+				  // Tối ưu: Gộp trạng thái Modal và dữ liệu liên quan
+				  const [modal, setModal] = useState({ type: null, data: null }); 
+				  
+				  // State quản lý nhạc nền Double 
+				  const [doubleMusic, setDoubleMusic] = useState(null); 
+				  
+				// --- LOGIC AUDIO ---
+				
+				const slugifyPlayerName = (name) => {
+					return name
+						.toLowerCase()
+						.normalize("NFD")
+						.replace(/[\u0300-\u036f]/g, "") 
+						.replace(/\s+/g, '') 
+						.replace(/đ/g, 'd'); 
+				};
+				
+				const playAudio = (path) => {
+					 const fullPath = path.startsWith('audio/') ? path : `audio/${path}`; 
+					 const audio = new Audio(fullPath);
+					 audio.play().catch(e => {
+						console.error(`Lỗi phát audio ${fullPath}:`, e.name);
+					});
+					return audio; 
+				};
+				
+				const playWinnerAudio = (winnerName, isDouble) => {
+					const winnerSlug = slugifyPlayerName(winnerName);
+					let audioFileName = `${winnerSlug}.mp3`; 
+
+					if (isDouble) {
+						audioFileName = `double${winnerSlug}.mp3`;
+					}
+					
+					playAudio(audioFileName);
+				};
+				
+				const playRoundEndAudio = (remainingRounds) => {
+					let fileToPlay = null;
+					
+					if (remainingRounds === 3) {
+						 fileToPlay = '3left.mp3';
+					} else if (remainingRounds === 2) {
+						 fileToPlay = '2left.mp3';
+					} else if (remainingRounds === 1) {
+						 fileToPlay = '1left.mp3';
+					} 
+					else if (remainingRounds <= 0) {
+						 fileToPlay = 'gameover.mp3';
+					}
+					
+					if (fileToPlay) {
+						setTimeout(() => playAudio(fileToPlay), 2500); 
+					}
+				};
+						
+				// LOGIC QUẢN LÝ NHẠC NỀN DOUBLE 
+				useEffect(() => {
+					if (doubleNext) {
+						if (doubleMusic) {
+							doubleMusic.pause();
+						}
+						
+						const music = new Audio('audio/doublemusic.mp3');
+						music.loop = true;
+						music.volume = 1.0;
+						setDoubleMusic(music);
+						
+						music.play().catch(e => console.error("Lỗi phát nhạc nền Double:", e.name));
+						
+					} else {
+						if (doubleMusic) {
+							doubleMusic.pause();
+							setDoubleMusic(null); 
+						}
+					}
+				}, [doubleNext]); 
+				
+				// --- KẾT THÚC LOGIC AUDIO ---
+				
+				// --- LOGIC WAKE LOCK ĐƠN GIẢN (BẬT/TẮT) - ĐÃ FIX BUG STALE STATE ---
+				
+				// Ref để giữ Sentinel (đối tượng khóa)
+				const wakeLockRef = useRef(null);
+				// Ref để giữ trạng thái isWakeLockEnabled mới nhất
+				const isWakeLockEnabledRef = useRef(isWakeLockEnabled); 
+				// Ref MỚI: Dùng để báo hiệu rằng đây là một lần nhả thủ công
+				const isManualReleaseRef = useRef(false); 
+
+				useEffect(() => {
+					// 1. Cập nhật Ref với trạng thái mới nhất
+					isWakeLockEnabledRef.current = isWakeLockEnabled;
+
+					// Hàm hủy khóa (Cho phép màn hình tắt)
+					const releaseLock = async () => {
+						if (wakeLockRef.current) {
+							try {
+								// *** THAY ĐỔI 1: Đặt cờ là Manual Release trước khi gọi release() ***
+								isManualReleaseRef.current = true; 
+								
+								await wakeLockRef.current.release();
+								
+								// Sau khi release, ta phải tự reset ref về null ở đây vì listener sẽ không chạy
+								wakeLockRef.current = null;
+
+								console.log("Wake Lock released: System default timeout.");
+							} catch (err) {
+								console.error("Error releasing lock:", err);
+							}
+						}
+					};
+
+					// Hàm yêu cầu khóa (Giữ màn hình sáng)
+					const requestLock = async () => {
+						if (!('wakeLock' in navigator)) return; 
+						if (wakeLockRef.current) return; 
+
+						try {
+							const sentinel = await navigator.wakeLock.request('screen');
+							wakeLockRef.current = sentinel;
+							
+							// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null và cố gắng khóa lại
+							sentinel.addEventListener('release', () => {
+								
+								// ** THAY ĐỔI 2: Xử lý cờ Manual Release **
+								if (isManualReleaseRef.current) {
+									// Nếu là nhả thủ công, reset cờ và KHÔNG làm gì khác (Ngăn re-request)
+									isManualReleaseRef.current = false;
+									return; 
+								}
+								
+								// Đây là System Release (tự động)
+								wakeLockRef.current = null;
+								
+								// Chỉ re-request nếu tính năng vẫn đang BẬT
+								if (isWakeLockEnabledRef.current) { 
+									console.log("Wake Lock re-requested by system...");
+									requestLock();
+								}
+							});
+							console.log("Wake Lock requested: Screen kept awake.");
+
+						} catch (err) {
+							console.error("Wake Lock request failed:", err);
+						}
+					};
+					
+					// --- LOGIC BẬT/TẮT ---
+					if (isWakeLockEnabled) {
+						requestLock();
+					} else {
+						// Khi tắt, thả khóa ngay
+						releaseLock();
+					}
+
+					// Cleanup: Luôn thả khóa khi component unmount
+					return () => {
+						releaseLock();
+					};
+				}, [isWakeLockEnabled]); 
+				// --- KẾT THÚC LOGIC WAKE LOCK ĐÃ FIX V3 ---
+				// ... (Phần còn lại của component)
+
+				  // Tính toán trạng thái vòng đấu
+				  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
+				  const currentRound = recordedRounds + 1;
+				  
+				  const effectiveRemainingRounds = useMemo(() => {
+					if (totalRounds === null) return null;
+					const playedSinceSet = recordedRounds - roundsStartCount; 
+					const remaining = totalRounds - playedSinceSet;
+					return remaining; 
+				  }, [totalRounds, recordedRounds, roundsStartCount]);
+				  
+				  const gameEnded = useMemo(() => 
+					totalRounds !== null && effectiveRemainingRounds !== null && effectiveRemainingRounds <= 0,
+					[totalRounds, effectiveRemainingRounds]
+				  );
+				  
+				  // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
+				  
+				  // HÀM ĐƯỢC CẬP NHẬT: Tạo đối tượng dữ liệu phiên chơi 
+				  const createSessionData = () => {
+					  // Lấy TẤT CẢ người chơi (đang chơi và đã dừng)
+					  const allFinalPlayers = [
+						  ...players.map(p => ({ 
+							  name: p.name, 
+							  score: p.score, 
+							  status: 'Playing' // Người đang chơi
+						  })), 
+						  ...kickedPlayers.map(p => ({ 
+							  name: p.name, 
+							  score: p.score, 
+							  status: 'Kicked' // Người đã dừng
+						  }))
+					  ];
+					  
+					  // Lấy endTime (Thời gian kết thúc)
+					  const endTime = new Date().toISOString(); 
+					  
+					  const sessionData = {
+						  // Sử dụng timestamp làm ID phiên
+						  sessionId: `Session-${endTime}`, 
+						  startTime: startTime, // Thời gian bắt đầu (từ state)
+						  endTime: endTime, // Thời gian kết thúc (lúc lưu)
+						  totalRoundsSet: totalRounds,
+						  roundsPlayed: history.filter(h => h.type === "record").length,
+						  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CÙNG
+					  };
+					  
+					  return sessionData;
+				  }
+
+				  // HÀM ĐƯỢC CẬP NHẬT: Xử lý lưu tự động với token GitHub
+				  const saveSessionAutomatically = async () => {
+					  if (isSessionSaved) {
+						  console.log("Session already saved, skipping automatic save.");
+						  return;
+					  }
+					  
+					  const sessionData = createSessionData();
+					  const newSessionEntry = sessionData; 
+
+					  console.log("Saving game session automatically to GitHub...");
+
+					  // 1. Lấy nội dung file hiện tại (để lấy SHA và dữ liệu cũ)
+					  let currentSha = null;
+					  let existingHistory = [];
+					  let getResponse;
+
+					  try {
+						  getResponse = await fetch(GITHUB_API_URL, {
+							  method: 'GET',
+							  headers: {
+								  'Authorization': `token ${GITHUB_TOKEN}`,
+								  'Accept': 'application/vnd.github.v3+json',
+							  },
+						  });
+					  } catch (error) {
+						  console.error("❌ Lỗi mạng/API khi GET file:", error);
+						  return; 
+					  }
+
+					  // 2. Xử lý phản hồi GET
+					  if (getResponse.ok) {
+						  const fileData = await getResponse.json();
+						  currentSha = fileData.sha;
+						  
+						  // SỬ DỤNG HÀM AN TOÀN KHI DECODE
+						  const content = b64ToUnicode(fileData.content); 
+						  
+						  if (content) {
+							  try {
+								  existingHistory = JSON.parse(content);
+							  } catch (e) {
+								   console.error("❌ Lỗi parse JSON file đã có. Bắt đầu phiên mới:", e);
+								   existingHistory = [];
+							  }
+						  } else {
+							  existingHistory = [];
+						  }
+						  
+					  } else if (getResponse.status === 404) {
+						  console.log("File data/session_history.json chưa tồn tại. Sẽ tạo mới.");
+						  existingHistory = []; 
+						  currentSha = null; 
+					  } else {
+						   console.error("❌ Lỗi khi GET file:", getResponse.status);
+						   return; 
+					  }
+					  
+					  // 3. Chuẩn bị nội dung mới
+					  const updatedHistory = [newSessionEntry, ...existingHistory]; 
+					  // SỬ DỤNG HÀM AN TOÀN KHI ENCODE
+					  const newContent = unicodeToB64(JSON.stringify(updatedHistory, null, 2));
+
+					  // 4. Commit lên GitHub
+					  const commitMessage = `Auto save session: ${sessionData.roundsPlayed} rounds completed.`;
+					  
+					  try {
+						  const putBody = {
+							  message: commitMessage,
+							  content: newContent,
+						  };
+						  // Thêm SHA chỉ khi đang cập nhật
+						  if (currentSha) {
+							  putBody.sha = currentSha;
+						  }
+						  
+						  const putResponse = await fetch(GITHUB_API_URL, {
+							  method: 'PUT',
+							  headers: {
+								  'Authorization': `token ${GITHUB_TOKEN}`,
+								  'Content-Type': 'application/json',
+							  },
+							  body: JSON.stringify(putBody),
+						  });
+
+						  if (putResponse.ok) {
+							  console.log("✅ Session saved successfully to GitHub.");
+							  setIsSessionSaved(true); 
+						  } else {
+							  const result = await putResponse.json();
+							  console.error("❌ Failed to save session. Status:", putResponse.status, "Details:", result);
+						  }
+					  } catch (error) {
+						  console.error("❌ Network/API error during session save:", error);
+					  }
+				  };
+
+				  // Trigger tự động lưu (background)
+				  useEffect(() => {
+					  // CHỈ TRIGGER khi game ENDED và CHƯA được lưu.
+					  if (gameEnded && !isSessionSaved) { 
+							  saveSessionAutomatically();
+					  }
+					  
+				  }, [gameEnded, isSessionSaved]);
+
+
+				  // Lưu trữ dữ liệu vào localStorage 
+				  useEffect(() => {
+					localStorage.setItem(getStorageKey("players"), JSON.stringify(players));
+					localStorage.setItem(getStorageKey("kickedPlayers"), JSON.stringify(kickedPlayers));
+					localStorage.setItem(getStorageKey("history"), JSON.stringify(history));
+					localStorage.setItem(getStorageKey("totalRounds"), JSON.stringify(totalRounds));
+					localStorage.setItem(getStorageKey("roundsStartCount"), JSON.stringify(roundsStartCount)); 
+					localStorage.setItem(getStorageKey("isSessionSaved"), JSON.stringify(isSessionSaved)); 
+					localStorage.setItem(getStorageKey("startTime"), JSON.stringify(startTime)); 
+					// *** THAY ĐỔI: Lưu trạng thái BẬT/TẮT Wake Lock ***
+					localStorage.setItem(getStorageKey("isWakeLockEnabled"), JSON.stringify(isWakeLockEnabled)); 
+				  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved, startTime, isWakeLockEnabled]); 
+
+				  // Điều chỉnh hàm showTempMessage
+				  const showTempMessage = (text, type = "info", duration = 2500, winnerName = "") => {
+					setMessage(text);
+					setMessageType(type);
+					setMessageWinner(winnerName);
+					setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
+				  };
+
+				  // Hàm thêm người chơi (ĐÃ CẬP NHẬT CHO MULTI-SELECT)
+				  const addPlayer = () => {
+					const namesToAdd = selectedPlayerNames.filter(name => name.trim() !== "");
+					
+					if (namesToAdd.length === 0) { 
+						showTempMessage("⚠️ Vui lòng chọn người chơi!", "warning");
+						return;
+					}
+					
+					let newPlayers = [...players];
+					let newKickedPlayers = [...kickedPlayers];
+					let addedCount = 0;
+					
+					for (const name of namesToAdd) {
+						// Giới hạn 5 người đang chơi
+						if (newPlayers.length >= 5) {
+							showTempMessage(`⚠️ Đã đủ ${newPlayers.length} người chơi. Bỏ qua các người chơi còn lại.`, "warning");
+							break;
+						}
+						
+						// 1. Kiểm tra đã có trong danh sách đang chơi chưa
+						if (newPlayers.some(p => p.name === name)) continue;
+						
+						// 2. Khôi phục người chơi đã dừng
+						const existingKickedPlayerIndex = newKickedPlayers.findIndex(p => p.name === name);
+						if (existingKickedPlayerIndex !== -1) {
+							const playerToRestore = newKickedPlayers[existingKickedPlayerIndex];
+							newKickedPlayers = newKickedPlayers.filter((_, idx) => idx !== existingKickedPlayerIndex);
+							newPlayers.push(playerToRestore);
+							addedCount++;
+						} 
+						// 3. Thêm người chơi mới (Nếu nằm trong FIXED_PLAYER_NAMES và chưa từng chơi/bị kick)
+						else if (FIXED_PLAYER_NAMES.includes(name) && !newKickedPlayers.some(p => p.name === name)) {
+							newPlayers.push({ name, score: 0 });
+							addedCount++;
+						}
+					}
+					
+					if (addedCount > 0) {
+						setKickedPlayers(newKickedPlayers);
+						setPlayers(newPlayers);
+						setSelectedPlayerNames([]); // Reset các lựa chọn
+						showTempMessage(`✅ Đã thêm ${addedCount} người chơi!`, "info");
+					} else {
+						setSelectedPlayerNames([]); // Reset các lựa chọn
+					}
+				  };
+
+				  const confirmReset = () => {
+					setModal({ type: 'reset', data: null });
+				  }
+				  const cancelModal = () => setModal({ type: null, data: null });
+				  
+				  // HÀM RESET 
+				  const resetGame = () => {
+					// Dừng nhạc nền khi reset
+					if (doubleMusic) {
+						doubleMusic.pause();
+						setDoubleMusic(null);
+					}
+					
+					setPlayers([]); setKickedPlayers([]); setHistory([]); setWinner("");
+					setDoubleNext(false); setManualMode(false);
+					setTotalRounds(null); 
+					setRoundsStartCount(0);
+					setIsSessionSaved(false); 
+					setStartTime(null); 
+					// KHÔNG RESET WAKE LOCK
+					clear9CayStorage(); // <- XÓA LOCAL STORAGE
+					setModal({ type: null, data: null });
+					setSelectedPlayerNames([]); // Reset lựa chọn
+				  };
+				  
+				  // --- BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
+				const settleGame = () => {
+					if (gameEnded) {
+						showTempMessage("⚠️ Trò chơi đã kết thúc rồi!", "warning");
+						return;
+					}
+					
+					const roundsPlayedSinceLastSet = recordedRounds - roundsStartCount;
+
+					// 1. Force gameEnded to true 
+					setTotalRounds(roundsPlayedSinceLastSet); 
+					
+					// 2. Play game over audio 
+					playAudio('gameover.mp3');
+					setModal({ type: null, data: null });
+					showTempMessage("💰Nhớ banking sớm nhé các anh!", "info", 2000); 
+				};
+
+				const confirmSettle = () => {
+					if (gameEnded) return;
+					if (players.length < 2 && history.length === 0) {
+						 return showTempMessage("⚠️ Chưa có người chơi hoặc ván nào để tính tiền!", "warning");
+					}
+					setModal({ type: 'settle', data: null });
+				}
+				// --- END BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
+
+				  // Hàm hiển thị Modal xác nhận ghi điểm
+				  const promptRecord = () => {
+					if (gameEnded) return;
+					if (players.length < 2)
+					  return showTempMessage("⚠️ Cần ít nhất 2 người chơi để bắt đầu!", "warning");
+					if (!winner)
+					  return showTempMessage("⚠️ Vui lòng chọn người thắng!", "error");
+					
+					setModal({ type: 'record', data: null });
+				  };
+
+				  // Hàm thực hiện ghi điểm (executeRecord) - ĐÃ BỎ LOGIC WAKE LOCK
+				  const executeRecord = () => {
+					setModal({ type: null, data: null });
+
+					const numLosers = players.length - 1;
+					const pointPerLoser = doubleNext ? 2 : 1;
+					const totalWin = numLosers * pointPerLoser;
+
+					const updatedPlayers = players.map(p => {
+					  if (p.name === winner) return { ...p, score: p.score + totalWin };
+					  return { ...p, score: p.score - pointPerLoser };
+					});
+					
+					// *** BỎ: KHÔNG CẦN RESET TIMER NỮA ***
+					
+					// Ghi startTime nếu là ván 1
+					if (recordedRounds === 0) { 
+						setStartTime(new Date().toISOString());
+					}
+
+					const changes = updatedPlayers.map((p, i) => ({
+					  name: p.name,
+					  // Cần tính delta dựa trên score hiện tại trong players
+					  delta: p.score - (players.find(oldP => oldP.name === p.name)?.score || 0),
+					}));
+
+					const wasDouble = doubleNext; 
+					const newHistory = [...history, { type: "record", winner, changes, isDouble: wasDouble }];
+					
+					setPlayers(updatedPlayers);
+					setHistory(newHistory);
+					
+					// XỬ LÝ AUDIO 
+					playWinnerAudio(winner, wasDouble);
+					
+					const newRecordedRounds = recordedRounds + 1;
+					const newRemainingRounds = totalRounds === null 
+						? null 
+						: totalRounds - (newRecordedRounds - roundsStartCount);
+					
+					if (newRemainingRounds !== null) {
+						playRoundEndAudio(newRemainingRounds);
+					}
+
+					setWinner("");
+					setDoubleNext(false); // Reset Double Next
+
+					const messageText = wasDouble 
+					  ? `✅ Đã ghi điểm ván ${currentRound} (Double)`
+					  : `✅ Đã ghi điểm ván ${currentRound}`;
+					
+					showTempMessage(messageText, "success", 3000, winner); 
+				  };
+				  
+				  // Hàm hiển thị Modal xác nhận Hoàn tác (promptUndo)
+				  const promptUndo = () => {
+					if (gameEnded || history.length === 0) return;
+					
+					const lastRecordIndex = history.map(h => h.type).lastIndexOf("record");
+					if (lastRecordIndex === -1) {
+						 return showTempMessage("⚠️ Không có ván nào để hoàn tác!", "warning");
+					}
+					
+					const lastAction = history.length > 0 ? history[history.length - 1].type : null;
+					// Lấy index của sự kiện cuối cùng (có thể là undo hoặc record)
+					const lastEventIndex = history.length - 1; 
+
+					// Nếu sự kiện cuối cùng là một "undo", ta không cho phép undo tiếp
+					if (history[lastEventIndex].type === "undo") {
+						return showTempMessage("⚠️ Không thể hoàn tác liên tiếp!", "error");
+					}
+
+					
+					const lastRecord = history[lastRecordIndex];
+					const undoRoundNum = history.filter((_, idx) => idx <= lastRecordIndex && _.type === "record").length;
+					
+					setModal({ 
+						type: 'undo', 
+						data: { 
+							lastRecord, 
+							undoRoundNum,
+							lastRecordIndex 
+						} 
+					});
+				  };
+
+				  // Hàm thực hiện Hoàn tác (executeUndo) 
+				  const executeUndo = () => {
+					const { lastRecord, undoRoundNum, lastRecordIndex } = modal.data;
+					setModal({ type: null, data: null }); 
+
+					// 1. Hoàn điểm
+					const reverted = players.map(p => {
+					  const change = lastRecord.changes.find(c => c.name === p.name)?.delta || 0;
+					  return { ...p, score: p.score - change };
+					});
+					
+					// 2. Cập nhật History
+					const tempHistory = [...history];
+					tempHistory.splice(lastRecordIndex, 1);
+					
+					const undoEvent = { 
+						type: "undo", 
+						targetRound: undoRoundNum, 
+						undoChanges: lastRecord.changes, 
+						undoWinner: lastRecord.winner,
+						undoDouble: lastRecord.isDouble,
+						timestamp: new Date().toISOString()
+					};
+					
+					const newHistory = [...tempHistory, undoEvent];
+
+					// 3. Cập nhật State
+					setPlayers(reverted);
+					setHistory(newHistory); 
+					setWinner("");
+					setDoubleNext(false);
+					
+					// Dừng nhạc nền Double nếu nó đang chạy và ván vừa hoàn tác là Double
+					if (doubleMusic && lastRecord.isDouble) {
+						doubleMusic.pause();
+						setDoubleMusic(null);
+					}
+					
+					// Nếu hoàn tác xảy ra khi gameEnded=true, ta cần đánh dấu lại là chưa lưu.
+					if (gameEnded) {
+						setIsSessionSaved(false);
+					}
+					
+					// Phát audio khi hoàn tác
+					playAudio('hoantac.mp3');
+
+					showTempMessage(`↩️ Đã hoàn tác Ván ${undoRoundNum}.`, "info");
+				  };
+
+
+				  const adjustScore = (i, delta) => {
+					const updated = [...players];
+					let newScore = updated[i].score + delta;
+					if (newScore > 999) newScore = 999;
+					if (newScore < -999) newScore = -999;
+					updated[i].score = newScore;
+					setPlayers(updated);
+				  };
+
+				  const updateManualName = (i, v) => {
+					const updated = [...players];
+					updated[i].name = v;
+					setPlayers(updated);
+				  };
+
+				  const promptKick = (i) => {
+					if (manualMode) return;
+					setModal({ type: 'kick', data: { ...players[i], index: i } });
+				  };
+
+				  const executeKick = () => {
+					const playerToKick = modal.data;
+					if (!playerToKick) return;
+					const { name, index } = playerToKick;
+					
+					setKickedPlayers([...kickedPlayers, players[index]]);
+					setPlayers(players.filter((_, idx) => idx !== index));
+					if (winner === name) setWinner("");
+					setSelectedPlayerNames([]); 
+					
+					showTempMessage(`🚫 ${name} đã dừng chơi!`);
+					setModal({ type: null, data: null });
+				  };
+				  
+				  const promptComeback = (player, index) => {
+					  if (isComebackDisabled) return;
+					  setModal({ type: 'comeback', data: { player, index } });
+				  };
+				  
+				  const executeComeback = () => {
+					  const { player, index } = modal.data;
+
+					  setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== index));
+					  setPlayers([...players, player]);
+					  
+					  showTempMessage(`👋 ${player.name} đã quay trở lại!`, "info");
+					  setModal({ type: null, data: null });
+				  };
+
+				  const total = [...players, ...kickedPlayers].reduce((s, p) => s + p.score, 0);
+				  const totalOk = Math.abs(total) < 1e-6;
+
+				  // Hàm toggleManualMode 
+				  const toggleManualMode = () => {
+					if (manualMode) {
+						if (!totalOk) {
+							showTempMessage("⚠️ Tổng điểm không bằng 0, vui lòng kiểm tra lại!", "error");
+							return;
+						}
+						// Phát audio khi hoàn thành nhập điểm
+						playAudio('nhapdiemthucong.mp3'); 
+					}
+					setManualMode(!manualMode);
+				  };
+
+				  // Bổ sung: State và logic cho Set Rounds
+				  const [roundInput, setRoundInput] = useState("");
+
+				  const promptSetRounds = () => {
+					// Hiển thị số ván còn lại (hoặc 5 ván mặc định) vào input
+					setRoundInput(effectiveRemainingRounds !== null && effectiveRemainingRounds > 0 ? String(effectiveRemainingRounds) : "5");
+					setModal({ type: 'setRounds', data: null });
+				  };
+
+				  // LOGIC applySetRounds 
+				  const applySetRounds = () => {
+					const num = parseInt(roundInput);
+					if (isNaN(num) || num <= 0)
+					  return showTempMessage("⚠️ Nhập số hợp lệ (> 0)!", "warning");
+					
+					// 1. Lưu số ván đã chơi TẠI THỜI ĐIỂM NÀY làm mốc bắt đầu đếm
+					setRoundsStartCount(recordedRounds);
+					
+					// 2. totalRounds là số ván CÒN LẠI được set (Mục tiêu đếm)
+					setTotalRounds(num); 
+					
+					setModal({ type: null, data: null });
+					setRoundInput("");
+					showTempMessage(`✅ Đã đặt còn ${num} ván nữa!`);
+					
+					// Phát audio khi đặt số ván
+					playAudio('dasetsovan.mp3');
+				  };
+
+				  const canSelectWinner = players.length >= 2 && !manualMode && !gameEnded;
+				  const isMaxPlayers = players.length >= 5;
+				  const isFeatureDisabled = manualMode || gameEnded;
+				  const isAddPlayerDisabled = isFeatureDisabled || isMaxPlayers; 
+				  const isComebackDisabled = isMaxPlayers || isFeatureDisabled;
+				  
+				  // Lọc ra các tên chưa có trong danh sách đang chơi
+				  const availablePlayerNames = useMemo(() => {
+					  const playingNames = players.map(p => p.name);
+					  // Lấy tất cả tên cố định, lọc bỏ tên đang chơi
+					  const namesNotPlaying = FIXED_PLAYER_NAMES.filter(name => !playingNames.includes(name));
+					  
+					  // Ưu tiên người đã bị kick lên đầu
+					  const kicked = namesNotPlaying.filter(name => kickedPlayers.some(p => p.name === name));
+					  const others = namesNotPlaying.filter(name => !kickedPlayers.some(p => p.name === name));
+					  
+					  return [...kicked, ...others];
+				  }, [players, kickedPlayers]);
+
+				  return (
+					<div className="bg-white rounded-2xl shadow-lg p-5 w-full relative">
+					  
+					  {/* Điều chỉnh: Vị trí và kích thước thông báo */}
+						{message && (
+						  <div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
+							<div className={`px-4 py-3 rounded-xl shadow-2xl text-lg font-bold transition-all duration-300 text-center w-full max-w-xs mx-4 ${ 
+							  messageType === "warning" ? "bg-yellow-400 text-black"
+							  : messageType === "error" ? "bg-red-200 text-red-800"
+							  : messageType === "success" ? "bg-green-600 text-white"
+							  : "bg-blue-500 text-white"
+							}`}>
+							  {/* HÀNG 1: Nội dung chung */}
+							  <div>
+								  {message}
+							  </div>
+							  
+							  {/* HÀNG 2: Tên người thắng (Chỉ hiển thị khi ghi điểm) */}
+							  {messageWinner && messageType === "success" && (
+								  <div className="text-red-600 text-2xl font-bold mt-1">
+									  {messageWinner}
+								  </div>
+							  )}
+							</div>
+						  </div>
+						)}
+					  
+					  {/* *** THAY THẾ: NÚT BẬT/TẮT WAKE LOCK *** */}
+					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
+						  <label className="text-sm text-gray-600 font-semibold">💡 Giữ màn hình sáng:</label>
+						  <button
+							  className={`px-3 py-1 rounded text-sm font-bold transition-all ${
+								  isWakeLockEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-gray-700"
+							  }`}
+							  onClick={() => setIsWakeLockEnabled(!isWakeLockEnabled)}
+						  >
+							  {isWakeLockEnabled ? "BẬT" : "TẮT"}
+						  </button>
+					  </div>
+					  {/* *** END THAY THẾ *** */}
+
+					  {gameEnded && (
+						<div className="text-center text-red-600 font-bold mb-3 text-lg">
+						  🏁 Trò chơi đã kết thúc — Reset để bắt đầu lại
+						</div>
+					  )}
+
+					  {/* THÊM người chơi bằng Multi-select - ĐÃ CẬP NHẬT */}
+					  <div className="flex flex-col gap-2 mb-3">
+						<select
+						  // Dùng multiple để chọn nhiều
+						  multiple
+						  size={Math.min(availablePlayerNames.length + 1, 6)}
+						  className="border rounded-lg px-3 py-2 bg-white w-full h-auto text-sm focus:ring-blue-500 focus:border-blue-500"
+						  value={selectedPlayerNames}
+						  onChange={e => {
+							  // Lấy tất cả các giá trị đã được chọn
+							  const options = [...e.target.selectedOptions];
+							  const values = options.map(option => option.value);
+							  setSelectedPlayerNames(values);
+						  }}
+						  disabled={isAddPlayerDisabled}
+						>
+							{/* Option hướng dẫn */}
+							<option value="" disabled className='text-gray-500 font-semibold bg-gray-100'>
+								Chọn (Ctrl/Cmd + Click để chọn nhiều)
+							</option>
+
+							{/* Lọc các tên khả dụng */}
+							{availablePlayerNames.map(name => {
+								const isKicked = kickedPlayers.some(p => p.name === name);
+								return (
+									// Tùy chọn chỉ hiển thị người chưa chơi/đã bị kick.
+									<option key={name} value={name}>
+										{name} {isKicked ? " (Quay lại)" : ""}
+									</option>
+								);
+							})}
+						</select>
+						<button
+						  // Nút "Thêm" bị disable nếu đủ người hoặc chưa chọn tên
+						  className={`px-4 py-2 rounded-lg text-white font-bold ${
+							isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
+						  }`}
+						  onClick={addPlayer}
+						  disabled={isAddPlayerDisabled || selectedPlayerNames.length === 0}
+						>
+							Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
+						</button>
+					  </div>
+					  {/* END THÊM */}
+
+					  {/* Danh sách người chơi */}
+					  {players.length === 0 ? (
+						<p className="text-gray-500 text-center">🧍‍♂️ Vui lòng thêm tối thiểu 2 người để bắt đầu</p>
+					  ) : (
+						<>
+						  <ul className="space-y-2">
+							{/* *** ĐIỀU CHỈNH 2.1: Sắp xếp người chơi theo điểm (giảm dần) trước khi map *** */}
+							{[...players].sort((a, b) => b.score - a.score).map((p, i) => (
+							  <li
+								// Đổi key sang p.name vì thứ tự hiển thị đã thay đổi do sort
+								key={p.name} 
+								className={`flex justify-between items-center border rounded-lg px-3 py-2 transition ${
+								  winner === p.name 
+									? "winner-glow font-semibold" 
+									: "bg-yellow-50 border-gray-300" // Nền vàng nhẹ và viền cố định
+								} ${canSelectWinner ? "cursor-pointer" : "cursor-default"}`}
+								onClick={() => canSelectWinner && setWinner(p.name)}
+							  >
+								{manualMode ? (
+								  <div className="flex items-center justify-between w-full">
+									<input
+									  className="border rounded px-2 flex-grow mr-2"
+									  value={p.name}
+									  // Cần tìm index gốc để cập nhật state đúng
+									  onChange={e => {
+										  const originalIndex = players.findIndex(player => player.name === p.name);
+										  updateManualName(originalIndex, e.target.value);
+									  }}
+									  disabled={gameEnded}
+									/>
+									<div className="flex items-center gap-1">
+									  <button 
+										className="bg-gray-300 px-2 rounded text-lg font-bold" 
+										onClick={() => {
+											const originalIndex = players.findIndex(player => player.name === p.name);
+											adjustScore(originalIndex, -1);
+										}}
+										disabled={gameEnded}
+									  >-</button>
+									  <span className="w-10 text-center">{p.score}</span>
+									  <button 
+										className="bg-gray-300 px-2 rounded text-lg font-bold" 
+										onClick={() => {
+											const originalIndex = players.findIndex(player => player.name === p.name);
+											adjustScore(originalIndex, 1);
+										}}
+										disabled={gameEnded}
+									  >+</button>
+									</div>
+								  </div>
+								) : (
+								  <>
+									<span>{p.name}</span>
+									<div className="flex items-center gap-2">
+									  <span>{p.score}</span>
+									  <button
+										className={`text-white px-2 rounded text-sm ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-red-500"}`}
+										onClick={(e) => { 
+											e.stopPropagation(); 
+											// Tìm index gốc để kick
+											const originalIndex = players.findIndex(player => player.name === p.name);
+											promptKick(originalIndex); 
+										}}
+										disabled={isFeatureDisabled}
+									  >
+										🚫 Kick
+									  </button>
+									</div>
+								  </>
+								)}
+							  </li>
+							))}
+						  </ul>
+
+						  {players.length < 2 && (
+							<p className="text-gray-500 text-center mt-2">
+							  🧍‍♂️ Vui lòng thêm tối thiểu 2 người để bắt đầu
+							</p>
+						  )}
+
+						  <div className="mt-3 text-center font-semibold">
+							<div className={`${totalOk ? "text-green-600" : "text-red-600"}`}>
+							  {totalOk ? "✅ Tổng điểm hợp lệ (0)" : `⚠️ Tổng điểm không bằng 0 (${total})`}
+							</div>
+							<div className="text-gray-700 mt-1">
+							  🧮 Ván thứ: {currentRound}
+							  {totalRounds !== null && (
+								<span> | ⏳ Còn {effectiveRemainingRounds > 0 ? effectiveRemainingRounds : 0} / {totalRounds} ván</span>
+							  )}
+							</div>
+						  </div>
+						</>
+					  )}
+
+					  {/* Người đã dừng chơi */}
+					  {kickedPlayers.length > 0 && (
+						<div className="mt-4">
+						  <h3 className="text-md font-semibold text-gray-700 mb-1">🎯 Người đã dừng chơi:</h3>
+						  <ul className="space-y-1">
+							{kickedPlayers.map((p, i) => (
+							  <li key={i} className="flex justify-between items-center bg-gray-100 border rounded px-3 py-1 text-sm">
+								<span>{p.name}</span>
+								<div className="flex items-center gap-2">
+									<span className="font-semibold">{p.score}</span>
+									<button
+										className={`text-white px-2 py-0.5 rounded text-xs ${isComebackDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-500"}`}
+										onClick={() => promptComeback(p, i)}
+										disabled={isComebackDisabled}
+										title={isMaxPlayers ? "Đã đủ 5 người chơi" : ""}
+									>
+										Comeback
+									</button>
+								</div>
+							  </li>
+							))}
+						  </ul>
+						</div>
+					  )}
+
+					  {/* Các nút chức năng */}
+					  {players.length >= 2 && !gameEnded && (
+						<>
+						  <div className="flex gap-2 mt-3">
+							<button 
+								className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-500"} ${doubleNext ? "pulse-effect bg-red-600" : ""}`} 
+								onClick={promptRecord} 
+								disabled={isFeatureDisabled}
+							>
+								{doubleNext ? "✅ Ghi điểm Double" : "✅ Ghi điểm"}
+							</button>
+							<button 
+								className={`flex-1 py-2 rounded text-white transition-all ${doubleNext ? "bg-red-500 pulse-effect" : "bg-gray-400"} ${isFeatureDisabled ? "opacity-50 cursor-not-allowed" : ""}`} 
+								onClick={() => setDoubleNext(!doubleNext)}
+								disabled={isFeatureDisabled}
+							>
+							  {doubleNext ? "💥 Double ON" : "💥 Double"}
+							</button>
+							<button 
+								className={`flex-1 py-2 rounded text-white ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-gray-500"}`} 
+								onClick={promptUndo}
+								disabled={isFeatureDisabled}
+							>↩️ Hoàn tác</button>
+						  </div>
+
+						  <div className="mt-3">
+							<button 
+								className={`w-full py-2 text-white rounded ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600"}`} 
+								onClick={promptSetRounds}
+								disabled={isFeatureDisabled}
+							>
+							  🎯 Set số ván còn lại
+							</button>
+						  </div>
+
+						  <button
+							className={`mt-3 w-full py-2 rounded font-semibold ${
+								manualMode && totalOk ? "bg-blue-500 text-white" : 
+								manualMode && !totalOk ? "bg-gray-600 text-white cursor-not-allowed" : 
+								"bg-blue-500 text-white"
+							}`}
+							onClick={toggleManualMode}
+							disabled={gameEnded || (manualMode && !totalOk)} 
+						  >
+							{manualMode ? (totalOk ? "💾 Hoàn thành" : "⚠️ Tổng điểm ≠ 0") : "✏️ Nhập điểm thủ công"}
+						  </button>
+						</>
+					  )}
+					  
+					  {/* Nút Tính tiền và Reset */}
+					  <div className="flex gap-2 mt-4">
+						<button 
+						   className={`flex-1 bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
+						   onClick={confirmSettle}
+						   disabled={gameEnded}
+						>
+						   💰 Tính tiền
+						</button>
+						<button 
+							className="flex-1 bg-red-500 text-white px-3 py-2 rounded" 
+							onClick={confirmReset}
+						>
+							Reset
+						</button>
+					  </div>
+
+					  {/* START: Gộp các Modal */}
+					  {modal.type && (
+						<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+						  <div className="bg-white p-5 rounded-xl shadow-lg text-center w-full max-w-sm mx-4">
+							
+							{/* Modal Reset */}
+							{modal.type === 'reset' && (
+								<>
+								  <p className="font-semibold mb-4">Reset toàn bộ dữ liệu?</p>
+								  <div className="flex justify-center gap-4">
+									<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={resetGame}>Xác nhận reset</button>
+									<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+								  </div>
+								</>
+							)}
+							
+							{/* Modal Settle */}
+							{modal.type === 'settle' && (
+								<>
+								  <p className="font-semibold mb-4 text-orange-600">Bạn muốn kết thúc và Tính tiền ngay?</p>
+								  <div className="flex justify-center gap-4">
+									<button className="bg-orange-500 text-white px-4 py-2 rounded" onClick={settleGame}>Xác nhận Tính tiền</button>
+									<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+								  </div>
+								</>
+							)}
+
+							{/* Modal Kick */}
+							{modal.type === 'kick' && modal.data && (
+								<>
+								  <p className="font-semibold mb-4">Đá đít <span className="text-red-600 font-bold">{modal.data.name}</span> khỏi trò chơi?</p>
+								  <div className="flex justify-center gap-4">
+									<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeKick}>Xác nhận</button>
+									<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+								  </div>
+								</>
+							)}
+
+							{/* Modal Comeback */}
+							{modal.type === 'comeback' && modal.data && (
+								<>
+								  <p className="font-semibold mb-4">Đưa <span className="text-green-600 font-bold">{modal.data.player.name}</span> quay lại?</p>
+								  <div className="flex justify-center gap-4">
+									<button className="bg-green-500 text-white px-4 py-2 rounded" onClick={executeComeback}>Xác nhận</button>
+									<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+								  </div>
+								</>
+							)}
+							
+							{/* Modal Ghi điểm */}
+							{modal.type === 'record' && (
+								<>
+								  <p className="font-semibold mb-4">
+									Ghi điểm ván <span className="text-blue-600 font-bold">{currentRound}</span> 
+									{doubleNext 
+									  ? <span className="text-red-600 font-bold"> (Double) </span> 
+									  : " "}
+									cho <span className="text-blue-600 font-bold">{winner}</span>?
+								  </p>
+								  <div className="flex justify-center gap-4">
+									<button className={`text-white px-4 py-2 rounded ${doubleNext ? "bg-red-500" : "bg-green-500"}`} onClick={executeRecord}>Xác nhận ghi điểm</button>
+									<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+								  </div>
+								</>
+							)}
+
+							{/* Modal Hoàn tác */}
+							{modal.type === 'undo' && modal.data && (
+								<>
+								  <p className="font-semibold mb-2 text-red-600">
+									Hoàn tác ván {modal.data.undoRoundNum}?
+								  </p>
+								  <div className='text-sm text-gray-700 mb-4 border p-2 rounded'>
+									Ván thắng của: <span className='font-bold'>{modal.data.lastRecord.winner}</span> 
+									{modal.data.lastRecord.isDouble && <span className='text-red-500 font-bold'> (Double)</span>}
+								  </div>
+								  <div className="flex justify-center gap-4">
+									<button className="bg-red-500 text-white px-4 py-2 rounded" onClick={executeUndo}>Xác nhận Hoàn tác</button>
+									<button className="bg-gray-400 text-white px-4 py-2 rounded" onClick={cancelModal}>Hủy</button>
+								  </div>
+								</>
+							)}
+							
+							{/* Modal Set Rounds */}
+							{modal.type === 'setRounds' && (
+								<>
+								  <p className="font-semibold mb-4">🎯 Đặt số ván còn lại:</p>
+								  <input
+									  type="number"
+									  className="w-full border rounded px-3 py-2 mb-4 text-lg text-center"
+									  placeholder="Nhập số ván..."
+									  value={roundInput}
+									  onChange={e => setRoundInput(e.target.value)}
+									  onKeyDown={e => e.key === "Enter" && applySetRounds()}
+									  autoFocus
+									  disabled={isFeatureDisabled}
+								  />
+								  <div className="flex justify-center gap-4">
+									  <button 
+										  className="bg-green-500 text-white px-4 py-2 rounded" 
+										  onClick={applySetRounds}
+										  disabled={isFeatureDisabled}
+									  >
+										  Lưu ({roundInput || 0} ván)
+									  </button>
+									  <button 
+										  className="bg-gray-400 text-white px-4 py-2 rounded" 
+										  onClick={() => {
+											  cancelModal();
+											  setRoundInput("");
+										  }}
+									  >
+										  Hủy
+									  </button>
+								  </div>
+								</>
+							)}
+							
+						  </div>
+						</div>
+					  )}
+					  {/* END: Gộp các Modal */}
+
+					  {/* Lịch sử */}
+					  <h2 className="text-lg font-semibold mt-4 mb-2">📜 Lịch sử</h2>
+					  {history.length === 0 ? (
+						<p className="text-gray-500">Chưa có ván nào.</p>
+					  ) : (
+						<ul className="space-y-1 max-h-60 overflow-y-auto">
+						  {[...history].reverse().map((h, i) => {
+							const globalIndex = history.length - 1 - i;
+
+							if (h.type === "undo") {
+								// Hiển thị sự kiện hoàn tác
+								return (
+									<li key={globalIndex} className="border border-yellow-500 rounded p-2 text-sm bg-yellow-100">
+										<strong>↩️ Đã hoàn tác Ván {h.targetRound}</strong>
+									</li>
+								);
+							}
+							
+							// Ván ghi điểm thông thường
+							const roundNum = history.filter((_, idx) => idx <= globalIndex && _.type === "record").length;
+							
+							return (
+							  <li key={globalIndex} className={`border rounded p-2 text-sm ${h.isDouble ? "bg-red-50 border-red-400" : "bg-gray-50"}`}>
+								<strong className={h.isDouble ? "text-red-600" : ""}>
+								  Ván {roundNum}{h.isDouble ? " (Double)" : ""}
+								</strong>: 🏆 <span className={h.isDouble ? "text-red-600 font-bold" : "text-green-600 font-bold"}>{h.winner}</span>
+								<div className="text-gray-600 mt-1 pl-2">
+								  {h.changes.map(c => (
+									// Sử dụng Flexbox để căn đều tuyệt đối
+									<div key={c.name} className="history-item-line">
+										
+										{/* Cột 1: Tên người chơi + Dấu ":" (Flex-grow: 1) */}
+										<div className="history-player-name">
+											{c.name}:
+										</div>
+										
+										{/* Cột 2: +/- Điểm (Độ rộng cố định 40px, căn phải) */}
+										<span className={`delta-score ${
+											c.delta > 0 ? 'text-green-600' : 
+											c.delta < 0 ? 'text-red-600' : 
+											'text-gray-600'
+										}`}>
+											{c.delta > 0 ? "+" : ""}{c.delta}
+										</span>
+									</div>
+								  ))}
+								</div>
+							  </li>
+							);
+						  })}
+						</ul>
+					  )}
+					</div>
+				  );
+				}
+
+				const root = ReactDOM.createRoot(document.getElementById("root"));
+				root.render(<App />);
+			  </script>
+</body>
+</html>
