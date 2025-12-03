@@ -1034,12 +1034,12 @@
 						<p className="text-gray-500 dark:text-gray-400 text-center">🧍‍♂️ Vui lòng thêm tối thiểu 2 người để bắt đầu</p>
 					  ) : (
 						<>
-						  <ul className="space-y-3"> {/* Tăng khoảng cách giữa các item */}
+						  <ul className="space-y-1"> {/* Tăng khoảng cách giữa các item */}
 							{/* SẮP XẾP THEO ĐIỂM */}
 							{[...players].sort((a, b) => b.score - a.score).map((p, i) => (
 							  <li
 								key={p.name} 
-								className={`flex justify-between items-center border rounded-lg px-2 py-2 transition ${ /* Tăng Padding */
+								className={`flex justify-between items-center border rounded-lg px-1 py-1 transition ${ /* Tăng Padding */
 								  winner === p.name 
 									? "winner-glow font-semibold" 
 									// CẬP NHẬT: Thêm Dark Mode cho item không phải Winner
@@ -1401,4 +1401,5 @@
 			  </script>
 </body>
 </html>
+
 
