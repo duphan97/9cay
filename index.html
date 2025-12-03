@@ -119,11 +119,12 @@
 				
 				// --- CẬP NHẬT: SVG ICONS CHO WAKE LOCK ---
 				
-				// TĂNG KÍCH THƯỚC: w-6 h-6
+				// TĂNG KÍCH THƯỚC: w-9 h-9 (Từ w-6 h-6)
 				
 				// SVG Bóng đèn TẮT (Màu xám, mờ)
 				const LightbulbOff = () => (
-					<svg className="w-6 h-6 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					// CẬP NHẬT KÍCH THƯỚC W-9 H-9
+					<svg className="w-9 h-9 text-gray-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 						{/* Body - fill: current color (gray), opacity: 0.4 */}
 						<path d="M12 2a6 6 0 0 0-4 10c0 2 1 3 1 3h6s1-1 1-3a6 6 0 0 0-4-10z" fill="currentColor" opacity="0.4"/>
 						{/* Filament - stroke: current color, opacity: 0.5 */}
@@ -135,7 +136,8 @@
 				
 				// SVG Bóng đèn BẬT (Màu vàng sáng, có shadow)
 				const LightbulbOn = () => (
-					<svg className="w-6 h-6 drop-shadow-md" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+					// CẬP NHẬT KÍCH THƯỚC W-9 H-9
+					<svg className="w-9 h-9 drop-shadow-md" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 						{/* Glow/Halo effect - White stroke around body */}
 						<path d="M12 2a6 6 0 0 0-4 10c0 2 1 3 1 3h6s1-1 1-3a6 6 0 0 0-4-10z" fill="#FBBF24" className="stroke-white stroke-1"/> 
 						{/* Filament - stroke: orange */}
@@ -889,10 +891,8 @@
 					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
 						  <label className="text-sm text-gray-600 font-semibold">Keep Screen Light:</label>
 						  <button
-							  // Bỏ các class px-3 py-1 rounded, chỉ giữ lại hover/tập trung
-							  className={`transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-opacity-50 
-								  ${isWakeLockEnabled ? "focus:ring-green-500" : "focus:ring-gray-400"}
-							  `}
+							  // LOẠI BỎ FOCUS RING HOÀN TOÀN: chỉ giữ lại focus:outline-none
+							  className={`transition-all flex items-center justify-center focus:outline-none`}
 							  onClick={() => setIsWakeLockEnabled(!isWakeLockEnabled)}
 						  >
 							  {isWakeLockEnabled ? <LightbulbOn /> : <LightbulbOff />} 
