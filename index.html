@@ -717,6 +717,37 @@
 					updated[i].name = v;
 					setPlayers(updated);
 				  };
+				  
+				  const initialPlayersRef = useRef(null); 
+				  
+				  const startManualMode = () => {
+					  if (!manualMode) {
+						  // Lưu trạng thái players ban đầu khi bắt đầu mode thủ công
+						  initialPlayersRef.current = players.map(p => ({...p})); 
+					  }
+					  setManualMode(!manualMode);
+				  }
+
+				  const toggleManualMode = () => {
+					if (manualMode) {
+						if (!totalOk) {
+							showTempMessage("⚠️ Tổng điểm không bằng 0, vui lòng kiểm tra lại!", "error");
+							return;
+						}
+						
+						// Kiểm tra xem điểm số có thay đổi không
+						const playersChanged = players.some(
+							(p, index) => p.score !== initialPlayersRef.current.find(ip => ip.name === p.name)?.score
+						);
+						
+						if (playersChanged) {
+							playAudio('nhapdiemthucong.mp3'); 
+						}
+						
+					}
+					setManualMode(!manualMode);
+					initialPlayersRef.current = null; // Xóa trạng thái ban đầu sau khi lưu/thoát
+				  };
 
 				  const promptKick = (i) => {
 					if (manualMode) return;
@@ -733,6 +764,7 @@
 					if (winner === name) setWinner("");
 					setSelectedPlayerNames([]); // Reset selection on kick
 					
+					playAudio('kick.mp3'); // **CẬP NHẬT: Phát âm thanh Kick**
 					showTempMessage(`🚫 ${name} đã dừng chơi!`);
 					setModal({ type: null, data: null });
 				  };
@@ -747,25 +779,18 @@
 					  const { player, index } = modal.data;
 
 					  setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== index));
-					  setPlayers([...players, player]);
 					  
+					  // Sắp xếp lại danh sách players sau khi thêm (theo thứ tự cố định)
+					  const newPlayers = [...players, player].sort((a, b) => FIXED_PLAYER_NAMES.indexOf(a.name) - FIXED_PLAYER_NAMES.indexOf(b.name));
+					  setPlayers(newPlayers);
+					  
+					  playAudio('comeback.mp3'); // **CẬP NHẬT: Phát âm thanh Comeback**
 					  showTempMessage(`👋 ${player.name} đã quay trở lại!`, "info");
 					  setModal({ type: null, data: null });
 				  };
 
 				  const total = [...players, ...kickedPlayers].reduce((s, p) => s + p.score, 0);
 				  const totalOk = Math.abs(total) < 1e-6;
-
-				  const toggleManualMode = () => {
-					if (manualMode) {
-						if (!totalOk) {
-							showTempMessage("⚠️ Tổng điểm không bằng 0, vui lòng kiểm tra lại!", "error");
-							return;
-						}
-						playAudio('nhapdiemthucong.mp3'); 
-					}
-					setManualMode(!manualMode);
-				  };
 
 				  const [roundInput, setRoundInput] = useState("");
 
@@ -830,17 +855,19 @@
 						  </div>
 						)}
 					  
+					  {/* CẬP NHẬT: Giao diện Keep Screen Light */}
 					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
-						  <label className="text-sm text-gray-600 font-semibold">💡💡︎ Giữ màn hình sáng:</label>
+						  <label className="text-sm text-gray-600 font-semibold">Keep Screen Light:</label>
 						  <button
 							  className={`px-3 py-1 rounded text-sm font-bold transition-all ${
 								  isWakeLockEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-gray-700"
 							  }`}
 							  onClick={() => setIsWakeLockEnabled(!isWakeLockEnabled)}
 						  >
-							  {isWakeLockEnabled ? "BẬT" : "TẮT"}
+							  {isWakeLockEnabled ? "💡" : "💡︎"} 
 						  </button>
 					  </div>
+					  {/* END CẬP NHẬT */}
 
 					  {gameEnded && (
 						<div className="text-center text-red-600 font-bold mb-3 text-lg">
@@ -1099,7 +1126,9 @@
 								manualMode && !totalOk ? "bg-gray-600 text-white cursor-not-allowed" : 
 								"bg-blue-500 text-white"
 							}`}
-							onClick={toggleManualMode}
+							// Cập nhật: Sử dụng startManualMode khi vào mode thủ công để lưu trạng thái, 
+							// và toggleManualMode để thoát/lưu
+							onClick={manualMode ? toggleManualMode : startManualMode}
 							disabled={gameEnded || (manualMode && !totalOk)} 
 						  >
 							{manualMode ? (totalOk ? "💾 Hoàn thành" : "⚠️ Tổng điểm ≠ 0") : "✏️ Nhập điểm thủ công"}
@@ -1296,4 +1325,3 @@
 			  </script>
 </body>
 </html>
-
