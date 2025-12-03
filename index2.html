@@ -102,8 +102,7 @@
 
 
 				// --------------------------------------------------------------------------------------
-				// --- GITHUB CONSTANTS (BẮT BUỘC ĐIỀN) ---
-				// !!! THAY THẾ CHUỖI NÀY BẰNG TOKEN CỦA BẠN (Đã chia 2 phần)
+				// --- GITHUB CONSTANTS ---
 				const GITHUB_TOKEN_PART1 = 'github_pat_11AHU2I4Q0eTQynszWYAnj_'; 
 				const GITHUB_TOKEN_PART2 = 'g3icOcB6W3He3EFtkB3rEuvAIst0GQQf50IaXXPDllERWI7ZWWJF0pB4QeI'; 
 
@@ -128,18 +127,17 @@
 				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
 				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("roundsStartCount"))) || 0);
 
-				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
+				  // Trạng thái mới: Theo dõi xem phiên đã được lưu chưa
 				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isSessionSaved"))) || false);
 				  
 				  // Thời gian bắt đầu (Ván 1)
 				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("startTime"))) || null);
 
-				  // *** THAY ĐỔI: Cấu hình Wake Lock - Dùng boolean BẬT/TẮT ***
+				  // Cấu hình Wake Lock - Dùng boolean BẬT/TẮT
 				  const [isWakeLockEnabled, setIsWakeLockEnabled] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isWakeLockEnabled"))) || false);
 
 				  // Trạng thái phiên hiện tại
-				  // *** ĐIỀU CHỈNH 1.1: Dùng Mảng cho Multi-select ***
-				  const [selectedPlayerNames, setSelectedPlayerNames] = useState([]); 
+				  const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
 				  const [winner, setWinner] = useState("");
 				  const [doubleNext, setDoubleNext] = useState(false);
 				  const [manualMode, setManualMode] = useState(false);
@@ -229,7 +227,7 @@
 				
 				// --- KẾT THÚC LOGIC AUDIO ---
 				
-				// --- LOGIC WAKE LOCK ĐƠN GIẢN (BẬT/TẮT) - ĐÃ FIX BUG STALE STATE ---
+				// --- LOGIC WAKE LOCK ---
 				
 				// Ref để giữ Sentinel (đối tượng khóa)
 				const wakeLockRef = useRef(null);
@@ -246,7 +244,6 @@
 					const releaseLock = async () => {
 						if (wakeLockRef.current) {
 							try {
-								// *** THAY ĐỔI 1: Đặt cờ là Manual Release trước khi gọi release() ***
 								isManualReleaseRef.current = true; 
 								
 								await wakeLockRef.current.release();
@@ -273,7 +270,7 @@
 							// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null và cố gắng khóa lại
 							sentinel.addEventListener('release', () => {
 								
-								// ** THAY ĐỔI 2: Xử lý cờ Manual Release **
+								// Xử lý cờ Manual Release
 								if (isManualReleaseRef.current) {
 									// Nếu là nhả thủ công, reset cờ và KHÔNG làm gì khác (Ngăn re-request)
 									isManualReleaseRef.current = false;
@@ -309,8 +306,7 @@
 						releaseLock();
 					};
 				}, [isWakeLockEnabled]); 
-				// --- KẾT THÚC LOGIC WAKE LOCK ĐÃ FIX V3 ---
-				// ... (Phần còn lại của component)
+				// --- KẾT THÚC LOGIC WAKE LOCK ---
 
 				  // Tính toán trạng thái vòng đấu
 				  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
@@ -328,9 +324,9 @@
 					[totalRounds, effectiveRemainingRounds]
 				  );
 				  
-				  // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
+				  // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG ---
 				  
-				  // HÀM ĐƯỢC CẬP NHẬT: Tạo đối tượng dữ liệu phiên chơi 
+				  // Tạo đối tượng dữ liệu phiên chơi 
 				  const createSessionData = () => {
 					  // Lấy TẤT CẢ người chơi (đang chơi và đã dừng)
 					  const allFinalPlayers = [
@@ -362,7 +358,7 @@
 					  return sessionData;
 				  }
 
-				  // HÀM ĐƯỢC CẬP NHẬT: Xử lý lưu tự động với token GitHub
+				  // Xử lý lưu tự động với token GitHub
 				  const saveSessionAutomatically = async () => {
 					  if (isSessionSaved) {
 						  console.log("Session already saved, skipping automatic save.");
@@ -397,7 +393,7 @@
 						  const fileData = await getResponse.json();
 						  currentSha = fileData.sha;
 						  
-						  // SỬ DỤNG HÀM AN TOÀN KHI DECODE
+						  // Sử dụng hàm an toàn khi decode
 						  const content = b64ToUnicode(fileData.content); 
 						  
 						  if (content) {
@@ -422,7 +418,7 @@
 					  
 					  // 3. Chuẩn bị nội dung mới
 					  const updatedHistory = [newSessionEntry, ...existingHistory]; 
-					  // SỬ DỤNG HÀM AN TOÀN KHI ENCODE
+					  // Sử dụng hàm an toàn khi encode
 					  const newContent = unicodeToB64(JSON.stringify(updatedHistory, null, 2));
 
 					  // 4. Commit lên GitHub
@@ -478,7 +474,7 @@
 					localStorage.setItem(getStorageKey("roundsStartCount"), JSON.stringify(roundsStartCount)); 
 					localStorage.setItem(getStorageKey("isSessionSaved"), JSON.stringify(isSessionSaved)); 
 					localStorage.setItem(getStorageKey("startTime"), JSON.stringify(startTime)); 
-					// *** THAY ĐỔI: Lưu trạng thái BẬT/TẮT Wake Lock ***
+					// Lưu trạng thái BẬT/TẮT Wake Lock
 					localStorage.setItem(getStorageKey("isWakeLockEnabled"), JSON.stringify(isWakeLockEnabled)); 
 				  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved, startTime, isWakeLockEnabled]); 
 
@@ -490,52 +486,38 @@
 					setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
 				  };
 
-				  // Hàm thêm người chơi (ĐÃ CẬP NHẬT CHO MULTI-SELECT)
+				  // Hàm thêm người chơi 
 				  const addPlayer = () => {
-					const namesToAdd = selectedPlayerNames.filter(name => name.trim() !== "");
-					
-					if (namesToAdd.length === 0) { 
+					const totalPlaying = players.length;
+					if (totalPlaying >= 5) return; 
+
+					const name = selectedPlayerName.trim(); 
+					if (!name) { 
 						showTempMessage("⚠️ Vui lòng chọn người chơi!", "warning");
 						return;
 					}
 					
-					let newPlayers = [...players];
-					let newKickedPlayers = [...kickedPlayers];
-					let addedCount = 0;
+					const availableNames = FIXED_PLAYER_NAMES.filter(n => 
+						!players.some(p => p.name === n)
+					);
 					
-					for (const name of namesToAdd) {
-						// Giới hạn 5 người đang chơi
-						if (newPlayers.length >= 5) {
-							showTempMessage(`⚠️ Đã đủ ${newPlayers.length} người chơi. Bỏ qua các người chơi còn lại.`, "warning");
-							break;
-						}
-						
-						// 1. Kiểm tra đã có trong danh sách đang chơi chưa
-						if (newPlayers.some(p => p.name === name)) continue;
-						
-						// 2. Khôi phục người chơi đã dừng
-						const existingKickedPlayerIndex = newKickedPlayers.findIndex(p => p.name === name);
-						if (existingKickedPlayerIndex !== -1) {
-							const playerToRestore = newKickedPlayers[existingKickedPlayerIndex];
-							newKickedPlayers = newKickedPlayers.filter((_, idx) => idx !== existingKickedPlayerIndex);
-							newPlayers.push(playerToRestore);
-							addedCount++;
-						} 
-						// 3. Thêm người chơi mới (Nếu nằm trong FIXED_PLAYER_NAMES và chưa từng chơi/bị kick)
-						else if (FIXED_PLAYER_NAMES.includes(name) && !newKickedPlayers.some(p => p.name === name)) {
-							newPlayers.push({ name, score: 0 });
-							addedCount++;
-						}
+					if (!availableNames.includes(name) && !kickedPlayers.some(p => p.name === name)) {
+						return; 
 					}
 					
-					if (addedCount > 0) {
-						setKickedPlayers(newKickedPlayers);
-						setPlayers(newPlayers);
-						setSelectedPlayerNames([]); // Reset các lựa chọn
-						showTempMessage(`✅ Đã thêm ${addedCount} người chơi!`, "info");
-					} else {
-						setSelectedPlayerNames([]); // Reset các lựa chọn
+					// Khôi phục người chơi đã dừng (qua chọn tên)
+					const existingKickedPlayerIndex = kickedPlayers.findIndex(p => p.name === name);
+					if (existingKickedPlayerIndex !== -1) {
+						const playerToRestore = kickedPlayers[existingKickedPlayerIndex];
+						setKickedPlayers(kickedPlayers.filter((_, idx) => idx !== existingKickedPlayerIndex));
+						setPlayers([...players, playerToRestore]);
+						setSelectedPlayerName(""); 
+						return showTempMessage(`✅ ${name} đã quay lại trò chơi!`, "info");
 					}
+					
+					// Thêm người chơi mới (Chỉ xảy ra nếu tên nằm trong FIXED_PLAYER_NAMES và chưa chơi)
+					setPlayers([...players, { name, score: 0 }]);
+					setSelectedPlayerName("");
 				  };
 
 				  const confirmReset = () => {
@@ -560,10 +542,10 @@
 					// KHÔNG RESET WAKE LOCK
 					clear9CayStorage(); // <- XÓA LOCAL STORAGE
 					setModal({ type: null, data: null });
-					setSelectedPlayerNames([]); // Reset lựa chọn
+					setSelectedPlayerName(""); 
 				  };
 				  
-				  // --- BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
+				  // --- LOGIC TÍNH TIỀN NGAY ---
 				const settleGame = () => {
 					if (gameEnded) {
 						showTempMessage("⚠️ Trò chơi đã kết thúc rồi!", "warning");
@@ -588,7 +570,7 @@
 					}
 					setModal({ type: 'settle', data: null });
 				}
-				// --- END BỔ SUNG LOGIC TÍNH TIỀN NGAY ---
+				// --- END LOGIC TÍNH TIỀN NGAY ---
 
 				  // Hàm hiển thị Modal xác nhận ghi điểm
 				  const promptRecord = () => {
@@ -601,7 +583,7 @@
 					setModal({ type: 'record', data: null });
 				  };
 
-				  // Hàm thực hiện ghi điểm (executeRecord) - ĐÃ BỎ LOGIC WAKE LOCK
+				  // Hàm thực hiện ghi điểm (executeRecord)
 				  const executeRecord = () => {
 					setModal({ type: null, data: null });
 
@@ -614,8 +596,6 @@
 					  return { ...p, score: p.score - pointPerLoser };
 					});
 					
-					// *** BỎ: KHÔNG CẦN RESET TIMER NỮA ***
-					
 					// Ghi startTime nếu là ván 1
 					if (recordedRounds === 0) { 
 						setStartTime(new Date().toISOString());
@@ -623,8 +603,7 @@
 
 					const changes = updatedPlayers.map((p, i) => ({
 					  name: p.name,
-					  // Cần tính delta dựa trên score hiện tại trong players
-					  delta: p.score - (players.find(oldP => oldP.name === p.name)?.score || 0),
+					  delta: p.score - players[i].score,
 					}));
 
 					const wasDouble = doubleNext; 
@@ -665,14 +644,9 @@
 					}
 					
 					const lastAction = history.length > 0 ? history[history.length - 1].type : null;
-					// Lấy index của sự kiện cuối cùng (có thể là undo hoặc record)
-					const lastEventIndex = history.length - 1; 
-
-					// Nếu sự kiện cuối cùng là một "undo", ta không cho phép undo tiếp
-					if (history[lastEventIndex].type === "undo") {
+					if (lastAction === "undo") {
 						return showTempMessage("⚠️ Không thể hoàn tác liên tiếp!", "error");
 					}
-
 					
 					const lastRecord = history[lastRecordIndex];
 					const undoRoundNum = history.filter((_, idx) => idx <= lastRecordIndex && _.type === "record").length;
@@ -765,7 +739,7 @@
 					setKickedPlayers([...kickedPlayers, players[index]]);
 					setPlayers(players.filter((_, idx) => idx !== index));
 					if (winner === name) setWinner("");
-					setSelectedPlayerNames([]); 
+					setSelectedPlayerName(""); 
 					
 					showTempMessage(`🚫 ${name} đã dừng chơi!`);
 					setModal({ type: null, data: null });
@@ -802,7 +776,7 @@
 					setManualMode(!manualMode);
 				  };
 
-				  // Bổ sung: State và logic cho Set Rounds
+				  // State và logic cho Set Rounds
 				  const [roundInput, setRoundInput] = useState("");
 
 				  const promptSetRounds = () => {
@@ -840,20 +814,13 @@
 				  // Lọc ra các tên chưa có trong danh sách đang chơi
 				  const availablePlayerNames = useMemo(() => {
 					  const playingNames = players.map(p => p.name);
-					  // Lấy tất cả tên cố định, lọc bỏ tên đang chơi
-					  const namesNotPlaying = FIXED_PLAYER_NAMES.filter(name => !playingNames.includes(name));
-					  
-					  // Ưu tiên người đã bị kick lên đầu
-					  const kicked = namesNotPlaying.filter(name => kickedPlayers.some(p => p.name === name));
-					  const others = namesNotPlaying.filter(name => !kickedPlayers.some(p => p.name === name));
-					  
-					  return [...kicked, ...others];
-				  }, [players, kickedPlayers]);
+					  return FIXED_PLAYER_NAMES.filter(name => !playingNames.includes(name));
+				  }, [players]);
 
 				  return (
 					<div className="bg-white rounded-2xl shadow-lg p-5 w-full relative">
 					  
-					  {/* Điều chỉnh: Vị trí và kích thước thông báo */}
+					  {/* Vị trí và kích thước thông báo */}
 						{message && (
 						  <div className={`fixed inset-0 flex items-center justify-center z-[100]`}>
 							<div className={`px-4 py-3 rounded-xl shadow-2xl text-lg font-bold transition-all duration-300 text-center w-full max-w-xs mx-4 ${ 
@@ -877,7 +844,7 @@
 						  </div>
 						)}
 					  
-					  {/* *** THAY THẾ: NÚT BẬT/TẮT WAKE LOCK *** */}
+					  {/* NÚT BẬT/TẮT WAKE LOCK */}
 					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
 						  <label className="text-sm text-gray-600 font-semibold">💡 Giữ màn hình sáng:</label>
 						  <button
@@ -889,7 +856,7 @@
 							  {isWakeLockEnabled ? "BẬT" : "TẮT"}
 						  </button>
 					  </div>
-					  {/* *** END THAY THẾ *** */}
+					  {/* END NÚT BẬT/TẮT WAKE LOCK */}
 
 					  {gameEnded && (
 						<div className="text-center text-red-600 font-bold mb-3 text-lg">
@@ -897,32 +864,25 @@
 						</div>
 					  )}
 
-					  {/* THÊM người chơi bằng Multi-select - ĐÃ CẬP NHẬT */}
-					  <div className="flex flex-col gap-2 mb-3">
+					  {/* THÊM người chơi bằng Dropdown */}
+					  <div className="flex mb-3">
 						<select
-						  // Dùng multiple để chọn nhiều
-						  multiple
-						  size={Math.min(availablePlayerNames.length + 1, 6)}
-						  className="border rounded-lg px-3 py-2 bg-white w-full h-auto text-sm focus:ring-blue-500 focus:border-blue-500"
-						  value={selectedPlayerNames}
-						  onChange={e => {
-							  // Lấy tất cả các giá trị đã được chọn
-							  const options = [...e.target.selectedOptions];
-							  const values = options.map(option => option.value);
-							  setSelectedPlayerNames(values);
-						  }}
+						  className="flex-grow border rounded-l-lg px-3 py-2 bg-white"
+						  value={selectedPlayerName}
+						  onChange={e => setSelectedPlayerName(e.target.value)}
 						  disabled={isAddPlayerDisabled}
 						>
-							{/* Option hướng dẫn */}
-							<option value="" disabled className='text-gray-500 font-semibold bg-gray-100'>
-								Chọn (Ctrl/Cmd + Click để chọn nhiều)
-							</option>
+							{/* Option mặc định/Full slot */}
+							{isMaxPlayers ? (
+								<option value="" disabled>Full slot</option>
+							) : (
+								<option value="" disabled>Chọn người chơi</option>
+							)}
 
 							{/* Lọc các tên khả dụng */}
 							{availablePlayerNames.map(name => {
 								const isKicked = kickedPlayers.some(p => p.name === name);
 								return (
-									// Tùy chọn chỉ hiển thị người chưa chơi/đã bị kick.
 									<option key={name} value={name}>
 										{name} {isKicked ? " (Quay lại)" : ""}
 									</option>
@@ -930,15 +890,13 @@
 							})}
 						</select>
 						<button
-						  // Nút "Thêm" bị disable nếu đủ người hoặc chưa chọn tên
-						  className={`px-4 py-2 rounded-lg text-white font-bold ${
-							isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
+						  // Nút "Thêm" bị disable nếu đủ người hoặc chưa chọn tên (selectedPlayerName là "")
+						  className={`px-4 py-2 rounded-r-lg text-white ${
+							isAddPlayerDisabled || !selectedPlayerName ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
 						  }`}
 						  onClick={addPlayer}
-						  disabled={isAddPlayerDisabled || selectedPlayerNames.length === 0}
-						>
-							Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
-						</button>
+						  disabled={isAddPlayerDisabled || !selectedPlayerName}
+						>Thêm</button>
 					  </div>
 					  {/* END THÊM */}
 
@@ -948,11 +906,9 @@
 					  ) : (
 						<>
 						  <ul className="space-y-2">
-							{/* *** ĐIỀU CHỈNH 2.1: Sắp xếp người chơi theo điểm (giảm dần) trước khi map *** */}
-							{[...players].sort((a, b) => b.score - a.score).map((p, i) => (
+							{players.map((p, i) => (
 							  <li
-								// Đổi key sang p.name vì thứ tự hiển thị đã thay đổi do sort
-								key={p.name} 
+								key={i}
 								className={`flex justify-between items-center border rounded-lg px-3 py-2 transition ${
 								  winner === p.name 
 									? "winner-glow font-semibold" 
@@ -965,29 +921,19 @@
 									<input
 									  className="border rounded px-2 flex-grow mr-2"
 									  value={p.name}
-									  // Cần tìm index gốc để cập nhật state đúng
-									  onChange={e => {
-										  const originalIndex = players.findIndex(player => player.name === p.name);
-										  updateManualName(originalIndex, e.target.value);
-									  }}
+									  onChange={e => updateManualName(i, e.target.value)}
 									  disabled={gameEnded}
 									/>
 									<div className="flex items-center gap-1">
 									  <button 
 										className="bg-gray-300 px-2 rounded text-lg font-bold" 
-										onClick={() => {
-											const originalIndex = players.findIndex(player => player.name === p.name);
-											adjustScore(originalIndex, -1);
-										}}
+										onClick={() => adjustScore(i, -1)}
 										disabled={gameEnded}
 									  >-</button>
 									  <span className="w-10 text-center">{p.score}</span>
 									  <button 
 										className="bg-gray-300 px-2 rounded text-lg font-bold" 
-										onClick={() => {
-											const originalIndex = players.findIndex(player => player.name === p.name);
-											adjustScore(originalIndex, 1);
-										}}
+										onClick={() => adjustScore(i, 1)}
 										disabled={gameEnded}
 									  >+</button>
 									</div>
@@ -999,12 +945,7 @@
 									  <span>{p.score}</span>
 									  <button
 										className={`text-white px-2 rounded text-sm ${isFeatureDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-red-500"}`}
-										onClick={(e) => { 
-											e.stopPropagation(); 
-											// Tìm index gốc để kick
-											const originalIndex = players.findIndex(player => player.name === p.name);
-											promptKick(originalIndex); 
-										}}
+										onClick={(e) => { e.stopPropagation(); promptKick(i); }}
 										disabled={isFeatureDisabled}
 									  >
 										🚫 Kick
@@ -1127,7 +1068,7 @@
 						</button>
 					  </div>
 
-					  {/* START: Gộp các Modal */}
+					  {/* START: Modal */}
 					  {modal.type && (
 						<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
 						  <div className="bg-white p-5 rounded-xl shadow-lg text-center w-full max-w-sm mx-4">
@@ -1248,7 +1189,7 @@
 						  </div>
 						</div>
 					  )}
-					  {/* END: Gộp các Modal */}
+					  {/* END: Modal */}
 
 					  {/* Lịch sử */}
 					  <h2 className="text-lg font-semibold mt-4 mb-2">📜 Lịch sử</h2>
