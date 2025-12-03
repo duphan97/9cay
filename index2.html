@@ -234,7 +234,9 @@
 				const wakeLockRef = useRef(null);
 				// Ref để giữ trạng thái isWakeLockEnabled mới nhất
 				const isWakeLockEnabledRef = useRef(isWakeLockEnabled); 
-				
+				// Ref MỚI: Dùng để báo hiệu rằng đây là một lần nhả thủ công
+				const isManualReleaseRef = useRef(false); 
+
 				useEffect(() => {
 					// 1. Cập nhật Ref với trạng thái mới nhất
 					isWakeLockEnabledRef.current = isWakeLockEnabled;
@@ -243,14 +245,14 @@
 					const releaseLock = async () => {
 						if (wakeLockRef.current) {
 							try {
-								// Xóa listener trước khi release để tránh việc nó tự request lại khi release thủ công
-								if (wakeLockRef.current.removeEventListener) {
-									// CÁCH TỐT NHẤT LÀ REMOVE LISTENER, nhưng WakeLockSentinel không có removeEventListener
-									// Do đó, ta sẽ dựa vào Ref isWakeLockEnabledRef.current
-								}
+								// *** THAY ĐỔI 1: Đặt cờ là Manual Release trước khi gọi release() ***
+								isManualReleaseRef.current = true; 
 								
 								await wakeLockRef.current.release();
+								
+								// Sau khi release, ta phải tự reset ref về null ở đây vì listener sẽ không chạy
 								wakeLockRef.current = null;
+
 								console.log("Wake Lock released: System default timeout.");
 							} catch (err) {
 								console.error("Error releasing lock:", err);
@@ -269,15 +271,22 @@
 							
 							// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null và cố gắng khóa lại
 							sentinel.addEventListener('release', () => {
+								
+								// ** THAY ĐỔI 2: Xử lý cờ Manual Release **
+								if (isManualReleaseRef.current) {
+									// Nếu là nhả thủ công, reset cờ và KHÔNG làm gì khác (Ngăn re-request)
+									isManualReleaseRef.current = false;
+									return; 
+								}
+								
+								// Đây là System Release (tự động)
 								wakeLockRef.current = null;
 								
-								// ** SỬ DỤNG REF MỚI NHẤT ĐỂ KIỂM TRA **
-								// Chỉ request lại nếu tính năng đang BẬT (tránh bug re-request khi TẮT)
+								// Chỉ re-request nếu tính năng vẫn đang BẬT
 								if (isWakeLockEnabledRef.current) { 
 									console.log("Wake Lock re-requested by system...");
 									requestLock();
 								}
-								// Nếu isWakeLockEnabledRef.current là false, nó sẽ không request lại (HÀNH VI CHÍNH XÁC)
 							});
 							console.log("Wake Lock requested: Screen kept awake.");
 
@@ -298,9 +307,9 @@
 					return () => {
 						releaseLock();
 					};
-				}, [isWakeLockEnabled]); // [isWakeLockEnabled] là dependency
-				// --- KẾT THÚC LOGIC WAKE LOCK ĐÃ FIX ---
-
+				}, [isWakeLockEnabled]); 
+				// --- KẾT THÚC LOGIC WAKE LOCK ĐÃ FIX V3 ---
+				// ... (Phần còn lại của component)
 
 				  // Tính toán trạng thái vòng đấu
 				  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
