@@ -10,24 +10,30 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* Dùng 1 animation chung cho pulse, màu sắc dùng tailwind */
     @keyframes pulse-base {0%,100%{opacity:1}50%{opacity:0.7}}
     .pulse-effect{animation:pulse-base 1s infinite}
     
+    /* CẬP NHẬT HIỆU ỨNG GLOW CỰC SẶC SỠ cho người thắng */
     @keyframes winner-glow-enhanced {
-      0%,100%{background:#e6fffa;border: 3px solid #047857;box-shadow:0 0 15px rgba(4, 120, 87, 0.8)} 
-      50%{background:#6ee7b7;border: 3px solid #065f46;box-shadow:0 0 25px rgba(6, 95, 70, 0.9)} 
+      0%,100%{background:#e6fffa;border: 3px solid #047857;box-shadow:0 0 15px rgba(4, 120, 87, 0.8)} /* Xanh nhạt, viền xanh đậm */
+      50%{background:#6ee7b7;border: 3px solid #065f46;box-shadow:0 0 25px rgba(6, 95, 70, 0.9)} /* Xanh sáng hơn, viền đậm hơn */
     }
     .winner-glow{animation:winner-glow-enhanced 1.2s infinite}
+    /* END CẬP NHẬT HIỆU ỨNG */
     
+    /* Tên người chơi trong lịch sử: In đậm, màu đen */
     .history-player-name {
         font-weight: 700; 
         color: #1f2937; 
+        /* Flex grow để chiếm hết không gian còn lại */
         flex-grow: 1; 
-        overflow: hidden; 
+        overflow: hidden; /* Tránh tràn khi tên quá dài */
         text-overflow: ellipsis; 
         white-space: nowrap;
     }
     
+    /* Container cho mỗi dòng lịch sử để căn đều bằng flexbox */
     .history-item-line {
         display: flex;
         align-items: baseline;
@@ -35,11 +41,12 @@
         margin-top: 2px;
     }
     
+    /* Cố định chiều rộng cho điểm để căn đều tuyệt đối */
     .delta-score {
         display: inline-block;
-        width: 40px; 
+        width: 40px; /* Độ rộng cố định, đủ cho "+99" */
         text-align: right;
-        font-weight: 600; 
+        font-weight: 600; /* in đậm */
     }
   </style>
 </head>
@@ -47,41 +54,60 @@
   <div id="root" class="w-full max-w-md"></div>
 
 	<script type="text/babel">
+				// --- HẰNG SỐ VÀ HELPER CHO LOCAL STORAGE ---
 				const LOCAL_STORAGE_PREFIX = '9cay_';
 
+				// Helper: Lấy key đã có prefix
 				const getStorageKey = (key) => `${LOCAL_STORAGE_PREFIX}${key}`;
 
+				// Helper: Xóa tất cả các key có prefix của 9 Cay
 				const clear9CayStorage = () => {
+					// 1. Lấy tất cả các key trong localStorage
 					const keys = Object.keys(localStorage);
+					
+					// 2. Lọc ra các key bắt đầu bằng prefix
 					const keysToRemove = keys.filter(key => key.startsWith(LOCAL_STORAGE_PREFIX));
+					
+					// 3. Xóa các key đã lọc
 					keysToRemove.forEach(key => localStorage.removeItem(key));
 				};
+				// --- END HẰNG SỐ VÀ HELPER ---
 				
 				const { useState, useEffect, useMemo, useRef } = React;
 				
+				// DANH SÁCH TÊN CỐ ĐỊNH 
 				const FIXED_PLAYER_NAMES = [
 					"Bình Đặng", "Dũng Hoàng", "Dũng Nguyễn", 
 					"Dự Phan", "Định Ngô", "Đông Lê", 
 					"Khánh Đỗ", "Minh Anh", "Nhân Trần", 
 					"Quý Huỳnh", "Tuấn Nguyễn", "Yến Dương", "Trúc Trần"
 				];
+				// END DANH SÁCH TÊN
 
+				// --- BASE64 AN TOÀN CHO UNICODE ---
+				// Hàm này chuyển đổi Unicode string sang Base64
 				const unicodeToB64 = (str) => btoa(
 					encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => 
 						String.fromCharCode('0x' + p1)
 					)
 				);
 
+				// Hàm này chuyển đổi Base64 string trở lại thành Unicode
 				const b64ToUnicode = (str) => decodeURIComponent(
 					Array.prototype.map.call(atob(str), (c) => 
 						'%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
 					).join('')
 				);
+				// --- END FIX ---
 
 
+				// --------------------------------------------------------------------------------------
+				// --- GITHUB CONSTANTS (BẮT BUỘC ĐIỀN) ---
+				// !!! THAY THẾ CHUỖI NÀY BẰNG TOKEN CỦA BẠN (Đã chia 2 phần)
 				const GITHUB_TOKEN_PART1 = 'github_pat_11AHU2I4Q0eTQynszWYAnj_'; 
 				const GITHUB_TOKEN_PART2 = 'g3icOcB6W3He3EFtkB3rEuvAIst0GQQf50IaXXPDllERWI7ZWWJF0pB4QeI'; 
 
+				// Nối lại token khi chạy
 				const GITHUB_TOKEN = GITHUB_TOKEN_PART1 + GITHUB_TOKEN_PART2; 
 				
 				const REPO_OWNER = 'duphan97';
@@ -89,35 +115,49 @@
 				const DATA_FILE_PATH = 'data/session_history.json'; 
 
 				const GITHUB_API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE_PATH}`;
+				// --------------------------------------------------------------------------------------
 
 				function App() {
+				  // Dữ liệu chính
 				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("players"))) || []);
 				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("kickedPlayers"))) || []);
 				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("history"))) || []);
 				  
+				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm)
 				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("totalRounds"))) || null);
+				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
 				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("roundsStartCount"))) || 0);
 
+				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
 				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isSessionSaved"))) || false);
 				  
+				  // Thời gian bắt đầu (Ván 1)
 				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("startTime"))) || null);
 
+				  // Cấu hình Wake Lock
 				  const [isWakeLockEnabled, setIsWakeLockEnabled] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isWakeLockEnabled"))) || false);
 
+				  // *** CẬP NHẬT: Dùng array cho multi-select ***
 				  const [selectedPlayerNames, setSelectedPlayerNames] = useState([]); 
 				  const [winner, setWinner] = useState("");
 				  const [doubleNext, setDoubleNext] = useState(false);
 				  const [manualMode, setManualMode] = useState(false);
 				  
+				  // Quản lý thông báo
 				  const [message, setMessage] = useState("");
 				  const [messageWinner, setMessageWinner] = useState("");
 				  const [messageType, setMessageType] = useState("info");
 				  
+				  // Tối ưu: Gộp trạng thái Modal và dữ liệu liên quan
 				  const [modal, setModal] = useState({ type: null, data: null }); 
 				  
+				  // State quản lý nhạc nền Double 
 				  const [doubleMusic, setDoubleMusic] = useState(null); 
 				  
+				  // State cho Custom Dropdown (MỚI)
 				  const [isDropdownOpen, setIsDropdownOpen] = useState(false); 
+				
+				// --- LOGIC AUDIO ---
 				
 				const slugifyPlayerName = (name) => {
 					return name
@@ -167,6 +207,7 @@
 					}
 				};
 						
+				// LOGIC QUẢN LÝ NHẠC NỀN DOUBLE 
 				useEffect(() => {
 					if (doubleNext) {
 						if (doubleMusic) {
@@ -187,6 +228,10 @@
 						}
 					}
 				}, [doubleNext]); 
+				
+				// --- KẾT THÚC LOGIC AUDIO ---
+				
+				// --- LOGIC WAKE LOCK ĐÃ FIX V3 ---
 				
 				const wakeLockRef = useRef(null);
 				const isWakeLockEnabledRef = useRef(isWakeLockEnabled); 
@@ -250,7 +295,9 @@
 						releaseLock();
 					};
 				}, [isWakeLockEnabled]); 
+				// --- KẾT THÚC LOGIC WAKE LOCK ĐÃ FIX V3 ---
 
+				  // Tính toán trạng thái vòng đấu
 				  const recordedRounds = useMemo(() => history.filter(h => h.type === "record").length, [history]);
 				  const currentRound = recordedRounds + 1;
 				  
@@ -265,6 +312,8 @@
 					totalRounds !== null && effectiveRemainingRounds !== null && effectiveRemainingRounds <= 0,
 					[totalRounds, effectiveRemainingRounds]
 				  );
+				  
+				  // --- LOGIC LƯU LỊCH SỬ TỰ ĐỘNG (SILENT BACKGROUND) ---
 				  
 				  const createSessionData = () => {
 					  const allFinalPlayers = [
@@ -409,7 +458,8 @@
 					setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
 				  };
 
-				  // *** CẬP NHẬT: Logic giới hạn 5 người chơi nghiêm ngặt hơn ***
+				  // *** LOGIC: Giới hạn 5 người chơi nghiêm ngặt (Players + Selected) ***
+				  // Slots còn lại có thể chọn thêm
 				  const maxNewSelection = useMemo(() => 5 - players.length, [players.length]);
 				  
 				  const togglePlayerSelection = (name) => {
@@ -428,7 +478,7 @@
 						  }
 					  });
 				  };
-				  // *** END CẬP NHẬT ***
+				  // *** END LOGIC ***
 				  
 				  const addPlayer = () => {
 					const namesToAdd = selectedPlayerNames.filter(name => name.trim() !== "");
@@ -442,14 +492,15 @@
 					let newKickedPlayers = [...kickedPlayers];
 					let addedCount = 0;
 					
+					// Vòng lặp qua danh sách đã chọn
 					for (const name of namesToAdd) {
 						if (newPlayers.length >= 5) {
-							// Logic này đã được xử lý bởi maxNewSelection, nhưng vẫn giữ để đảm bảo an toàn.
 							break;
 						}
 						
 						if (newPlayers.some(p => p.name === name)) continue;
 						
+						// Ưu tiên khôi phục người đã dừng chơi
 						const existingKickedPlayerIndex = newKickedPlayers.findIndex(p => p.name === name);
 						if (existingKickedPlayerIndex !== -1) {
 							const playerToRestore = newKickedPlayers[existingKickedPlayerIndex];
@@ -457,6 +508,7 @@
 							newPlayers.push(playerToRestore);
 							addedCount++;
 						} 
+						// Nếu là người mới hoặc chưa từng bị kick
 						else if (FIXED_PLAYER_NAMES.includes(name) && !newKickedPlayers.some(p => p.name === name)) {
 							newPlayers.push({ name, score: 0 });
 							addedCount++;
@@ -465,10 +517,10 @@
 					
 					if (addedCount > 0) {
 						setKickedPlayers(newKickedPlayers);
-						// Sắp xếp lại danh sách players sau khi thêm (tùy chọn)
+						// Sắp xếp lại danh sách players sau khi thêm (theo thứ tự cố định)
 						setPlayers(newPlayers.sort((a, b) => FIXED_PLAYER_NAMES.indexOf(a.name) - FIXED_PLAYER_NAMES.indexOf(b.name))); 
-						setSelectedPlayerNames([]); 
-						setIsDropdownOpen(false); 
+						setSelectedPlayerNames([]); // Reset lựa chọn
+						setIsDropdownOpen(false); // Đóng dropdown
 						showTempMessage(`✅ Đã thêm ${addedCount} người chơi!`, "info");
 					} else {
 						setSelectedPlayerNames([]); 
@@ -494,7 +546,7 @@
 					setStartTime(null); 
 					clear9CayStorage(); 
 					setModal({ type: null, data: null });
-					setSelectedPlayerNames([]); 
+					setSelectedPlayerNames([]); // Reset multi-select
 					setIsDropdownOpen(false); 
 				  };
 				  
@@ -679,7 +731,7 @@
 					setKickedPlayers([...kickedPlayers, players[index]]);
 					setPlayers(players.filter((_, idx) => idx !== index));
 					if (winner === name) setWinner("");
-					setSelectedPlayerNames([]); 
+					setSelectedPlayerNames([]); // Reset selection on kick
 					
 					showTempMessage(`🚫 ${name} đã dừng chơi!`);
 					setModal({ type: null, data: null });
@@ -796,7 +848,7 @@
 						</div>
 					  )}
 
-					  {/* *** CẬP NHẬT: CUSTOM DROPDOWN SELECTOR *** */}
+					  {/* *** CUSTOM DROPDOWN SELECTOR *** */}
 					  <div className="relative mb-3 z-20"> 
 						  {/* Toggle Button/Display Line */}
 						  <button
@@ -837,17 +889,17 @@
 							  </svg>
 						  </button>
 						  
-						  {/* Dropdown List Content (Đã bỏ max-h-[200px]) */}
+						  {/* Dropdown List Content (Đã bỏ max-h để hiển thị full danh sách) */}
 						  {isDropdownOpen && !isMaxPlayers && (
 							  <div 
-								  className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-white shadow-xl w-full text-sm overflow-y-auto max-h-[400px]" // Set max-height lớn để gần như hiển thị đủ
+								  className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-white shadow-xl w-full text-sm overflow-y-auto" // Đã bỏ max-h để hiển thị full danh sách
 								  style={{ WebkitOverflowScrolling: 'touch' }} 
 							  >
 								  {availablePlayerNames.map(name => {
 									  const isKicked = kickedPlayers.some(p => p.name === name);
 									  const isSelected = selectedPlayerNames.includes(name);
 									  
-									  // *** Logic vô hiệu hóa từng dòng khi đạt maxNewSelection ***
+									  // Logic vô hiệu hóa từng dòng khi đạt maxNewSelection
 									  const isSelectionDisabled = !isSelected && selectedPlayerNames.length >= maxNewSelection;
 
 									  return (
@@ -888,7 +940,7 @@
 							  Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
 						  </button>
 					  </div>
-					  {/* END CẬP NHẬT: CUSTOM DROPDOWN SELECTOR */}
+					  {/* END CUSTOM DROPDOWN SELECTOR */}
 
 					  {/* Danh sách người chơi */}
 					  {players.length === 0 ? (
