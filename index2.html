@@ -104,7 +104,6 @@
 
 				  const [isWakeLockEnabled, setIsWakeLockEnabled] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isWakeLockEnabled"))) || false);
 
-				  // *** ĐÃ ĐIỀU CHỈNH: Trở lại Multi-select Array ***
 				  const [selectedPlayerNames, setSelectedPlayerNames] = useState([]); 
 				  const [winner, setWinner] = useState("");
 				  const [doubleNext, setDoubleNext] = useState(false);
@@ -409,7 +408,18 @@
 					setTimeout(() => { setMessage(""); setMessageWinner(""); }, duration);
 				  };
 
-				  // *** ĐÃ ĐIỀU CHỈNH: Logic Add Player cho Multi-select Array ***
+				  // *** FIX: Logic BẬT/TẮT chọn người chơi (Custom List) ***
+				  const togglePlayerSelection = (name) => {
+					  setSelectedPlayerNames(prev => {
+						  if (prev.includes(name)) {
+							  return prev.filter(n => n !== name);
+						  } else {
+							  return [...prev, name];
+						  }
+					  });
+				  };
+				  // *** END FIX ***
+				  
 				  const addPlayer = () => {
 					const namesToAdd = selectedPlayerNames.filter(name => name.trim() !== "");
 					
@@ -423,16 +433,13 @@
 					let addedCount = 0;
 					
 					for (const name of namesToAdd) {
-						// Giới hạn 5 người đang chơi
 						if (newPlayers.length >= 5) {
 							showTempMessage(`⚠️ Đã đủ ${newPlayers.length} người chơi. Bỏ qua các người chơi còn lại.`, "warning");
 							break;
 						}
 						
-						// 1. Kiểm tra đã có trong danh sách đang chơi chưa
 						if (newPlayers.some(p => p.name === name)) continue;
 						
-						// 2. Khôi phục người chơi đã dừng
 						const existingKickedPlayerIndex = newKickedPlayers.findIndex(p => p.name === name);
 						if (existingKickedPlayerIndex !== -1) {
 							const playerToRestore = newKickedPlayers[existingKickedPlayerIndex];
@@ -440,7 +447,6 @@
 							newPlayers.push(playerToRestore);
 							addedCount++;
 						} 
-						// 3. Thêm người chơi mới
 						else if (FIXED_PLAYER_NAMES.includes(name) && !newKickedPlayers.some(p => p.name === name)) {
 							newPlayers.push({ name, score: 0 });
 							addedCount++;
@@ -450,10 +456,10 @@
 					if (addedCount > 0) {
 						setKickedPlayers(newKickedPlayers);
 						setPlayers(newPlayers);
-						setSelectedPlayerNames([]); // Reset các lựa chọn
+						setSelectedPlayerNames([]); 
 						showTempMessage(`✅ Đã thêm ${addedCount} người chơi!`, "info");
 					} else {
-						setSelectedPlayerNames([]); // Reset các lựa chọn
+						setSelectedPlayerNames([]); 
 					}
 				  };
 
@@ -520,7 +526,6 @@
 					const totalWin = numLosers * pointPerLoser;
 
 					const updatedPlayers = players.map(p => {
-					  // Cần tìm lại người chơi gốc trong state players trước khi sort
 					  const originalPlayer = players.find(op => op.name === p.name);
 					  const oldScore = originalPlayer ? originalPlayer.score : 0;
 					  
@@ -731,6 +736,7 @@
 					  const kicked = namesNotPlaying.filter(name => kickedPlayers.some(p => p.name === name));
 					  const others = namesNotPlaying.filter(name => !kickedPlayers.some(p => p.name === name));
 					  
+					  // Ưu tiên người đã dừng chơi lên đầu danh sách
 					  return [...kicked, ...others];
 				  }, [players, kickedPlayers]);
 
@@ -776,38 +782,46 @@
 						</div>
 					  )}
 
-					  {/* *** ĐÃ ĐIỀU CHỈNH: MULTI-SELECT *** */}
+					  {/* *** FIX: Custom Multi-select List (Thay thế select multiple) *** */}
 					  <div className="flex flex-col gap-2 mb-3">
-						<select
-						  multiple
-						  // Đặt size tối đa 5 để giữ giao diện di động gọn gàng
-						  size={Math.min(availablePlayerNames.length + 1, 5)} 
-						  className="border rounded-lg px-3 py-2 bg-white w-full h-auto text-sm focus:ring-blue-500 focus:border-blue-500"
-						  value={selectedPlayerNames}
-						  onChange={e => {
-							  const options = [...e.target.selectedOptions];
-							  const values = options.map(option => option.value);
-							  setSelectedPlayerNames(values);
-						  }}
-						  disabled={isAddPlayerDisabled}
-						>
+						<div 
+                            // Giới hạn chiều cao cho giao diện di động
+                            className={`border rounded-lg bg-white w-full text-sm overflow-y-auto ${
+                                isMaxPlayers ? 'h-10 flex items-center justify-center text-gray-500 font-bold' : 'max-h-[160px]'
+                            }`}
+                            style={{ WebkitOverflowScrolling: 'touch' }} 
+                        >
+							{/* Case 1: Full Slot */}
 							{isMaxPlayers ? (
-								<option value="" disabled>Full slot</option>
+								<div className='px-3 py-2 text-red-500 font-bold text-center'>Full slot</div>
 							) : (
-								<option value="" disabled className='text-gray-500 font-semibold bg-gray-100'>
-									Chọn người chơi
-								</option>
-							)}
+								/* Case 2: Not Full Slot */
+								<>
+									{/* Default prompt: "Chọn người chơi" */}
+									{availablePlayerNames.length === 0 && (
+										<div className='px-3 py-2 text-gray-500 font-semibold bg-gray-100'>Chọn người chơi</div>
+									)}
 
-							{availablePlayerNames.map(name => {
-								const isKicked = kickedPlayers.some(p => p.name === name);
-								return (
-									<option key={name} value={name}>
-										{name} {isKicked ? " (Quay lại)" : ""}
-									</option>
-								);
-							})}
-						</select>
+									{/* Render selectable names */}
+									{availablePlayerNames.map(name => {
+										const isKicked = kickedPlayers.some(p => p.name === name);
+										const isSelected = selectedPlayerNames.includes(name);
+										return (
+											<div
+												key={name} 
+												className={`px-3 py-2 cursor-pointer transition-colors border-b last:border-b-0 ${
+													isSelected ? "bg-blue-500 text-white font-bold" : "hover:bg-gray-100"
+												} ${isAddPlayerDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
+												onClick={() => !isAddPlayerDisabled && togglePlayerSelection(name)}
+												// Không dùng 'disabled' attribute cho div, dùng class và logic onClick
+											>
+												{name} {isKicked ? " (Quay lại)" : ""}
+											</div>
+										);
+									})}
+								</>
+							)}
+						</div>
 						<button
 						  className={`px-4 py-2 rounded-lg text-white font-bold ${
 							isAddPlayerDisabled || selectedPlayerNames.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500"
@@ -818,7 +832,7 @@
 							Thêm {selectedPlayerNames.length > 0 ? `(${selectedPlayerNames.length})` : ""} người chơi
 						</button>
 					  </div>
-					  {/* END MULTI-SELECT */}
+					  {/* END FIX: Custom Multi-select List */}
 
 					  {/* Danh sách người chơi */}
 					  {players.length === 0 ? (
@@ -843,7 +857,6 @@
 									  className="border rounded px-2 flex-grow mr-2"
 									  value={p.name}
 									  onChange={e => {
-										  // Cần tìm index gốc để cập nhật state đúng (index gốc dựa trên state players chưa sort)
 										  const originalIndex = players.findIndex(player => player.name === p.name);
 										  if (originalIndex !== -1) updateManualName(originalIndex, e.target.value);
 									  }}
