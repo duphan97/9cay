@@ -54,7 +54,7 @@
   <div id="root" class="w-full max-w-md"></div>
 
 	<script type="text/babel">
-				// --- HẰNG SỐ VÀ HELPER CHO LOCAL STORAGE (ĐÃ CẬP NHẬT) ---
+				// --- HẰNG SỐ VÀ HELPER CHO LOCAL STORAGE ---
 				const LOCAL_STORAGE_PREFIX = '9cay_';
 
 				// Helper: Lấy key đã có prefix
@@ -84,7 +84,7 @@
 				];
 				// END DANH SÁCH TÊN
 
-				// --- BASE64 AN TOÀN CHO UNICODE (ĐÃ SỬA LỖI btoa) ---
+				// --- BASE64 AN TOÀN CHO UNICODE ---
 				// Hàm này chuyển đổi Unicode string sang Base64
 				const unicodeToB64 = (str) => btoa(
 					encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => 
@@ -118,25 +118,24 @@
 				// --------------------------------------------------------------------------------------
 
 				function App() {
-				  // Dữ liệu chính (ĐÃ CẬP NHẬT PREFIX)
+				  // Dữ liệu chính
 				  const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("players"))) || []);
 				  const [kickedPlayers, setKickedPlayers] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("kickedPlayers"))) || []);
 				  const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("history"))) || []);
 				  
-				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm) (ĐÃ CẬP NHẬT PREFIX)
+				  // totalRounds: Số ván CÒN LẠI được set từ lần Set gần nhất (Mục tiêu đếm)
 				  const [totalRounds, setTotalRounds] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("totalRounds"))) || null);
-				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm) (ĐÃ CẬP NHẬT PREFIX)
+				  // roundsStartCount: Số ván đã chơi TẠI THỜI ĐIỂM SET (Mốc bắt đầu đếm)
 				  const [roundsStartCount, setRoundsStartCount] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("roundsStartCount"))) || 0);
 
-				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa (ĐÃ CẬP NHẬT PREFIX)
+				  // TRẠNG THÁI MỚI: Theo dõi xem phiên đã được lưu chưa
 				  const [isSessionSaved, setIsSessionSaved] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isSessionSaved"))) || false);
 				  
-				  // *** THÊM MỚI: Thời gian bắt đầu (Ván 1) *** (ĐÃ CẬP NHẬT PREFIX)
+				  // Thời gian bắt đầu (Ván 1)
 				  const [startTime, setStartTime] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("startTime"))) || null);
 
-				  // *** THÊM MỚI: Cấu hình Wake Lock (Timeout màn hình) ***
-				  // 0 = Mặc định hệ thống, >0 = Số giây giữ sáng
-				  const [screenTimeout, setScreenTimeout] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("screenTimeout"))) || 0);
+				  // *** THAY ĐỔI: Cấu hình Wake Lock - Dùng boolean BẬT/TẮT ***
+				  const [isWakeLockEnabled, setIsWakeLockEnabled] = useState(() => JSON.parse(localStorage.getItem(getStorageKey("isWakeLockEnabled"))) || false);
 
 				  // Trạng thái phiên hiện tại
 				  const [selectedPlayerName, setSelectedPlayerName] = useState(""); // Dùng cho dropdown
@@ -155,7 +154,7 @@
 				  // State quản lý nhạc nền Double 
 				  const [doubleMusic, setDoubleMusic] = useState(null); 
 				  
-				// --- LOGIC AUDIO ĐÃ ĐIỀU CHỈNH ĐỂ CHỈ PHÁT 1 FILE ---
+				// --- LOGIC AUDIO ---
 				
 				const slugifyPlayerName = (name) => {
 					return name
@@ -175,25 +174,20 @@
 					return audio; 
 				};
 				
-				// CẬP NHẬT HÀM: Chỉ phát 1 file duy nhất (đã fix delay)
 				const playWinnerAudio = (winnerName, isDouble) => {
 					const winnerSlug = slugifyPlayerName(winnerName);
-					let audioFileName = `${winnerSlug}.mp3`; // Tên file mặc định (văn thường)
+					let audioFileName = `${winnerSlug}.mp3`; 
 
-					// Nếu là Double, tiền tố thêm "double"
 					if (isDouble) {
 						audioFileName = `double${winnerSlug}.mp3`;
 					}
 					
-					// Phát file âm thanh đã được chuẩn bị sẵn
 					playAudio(audioFileName);
 				};
 				
-				// ĐIỀU CHỈNH HÀM: Phục hồi âm thanh báo 3, 2, 1 ván
 				const playRoundEndAudio = (remainingRounds) => {
 					let fileToPlay = null;
 					
-					// 1. Kiểm tra các mốc quan trọng (3, 2, 1)
 					if (remainingRounds === 3) {
 						 fileToPlay = '3left.mp3';
 					} else if (remainingRounds === 2) {
@@ -201,25 +195,19 @@
 					} else if (remainingRounds === 1) {
 						 fileToPlay = '1left.mp3';
 					} 
-					
-					// 2. Kiểm tra Game Over (0)
 					else if (remainingRounds <= 0) {
 						 fileToPlay = 'gameover.mp3';
 					}
 					
-					// Phát file đã xác định (nếu có), sử dụng delay ngắn 2.5s
-					// để tránh trùng lặp với audio người thắng vừa phát xong.
 					if (fileToPlay) {
 						setTimeout(() => playAudio(fileToPlay), 2500); 
 					}
 				};
 						
-				// LOGIC QUẢN LÝ NHẠC NỀN DOUBLE (ĐÃ CHỈNH SỬA)
+				// LOGIC QUẢN LÝ NHẠC NỀN DOUBLE 
 				useEffect(() => {
 					if (doubleNext) {
-						// Nếu đang bật double
 						if (doubleMusic) {
-							// Dừng nhạc cũ nếu có để phát lại từ đầu
 							doubleMusic.pause();
 						}
 						
@@ -231,28 +219,17 @@
 						music.play().catch(e => console.error("Lỗi phát nhạc nền Double:", e.name));
 						
 					} else {
-						// Nếu đang tắt double
 						if (doubleMusic) {
 							doubleMusic.pause();
-							// Đặt doubleMusic về null để useEffect tiếp theo tạo mới
 							setDoubleMusic(null); 
 						}
 					}
-					
-					// Cleanup function đảm bảo nhạc nền dừng khi component unmount
-					return () => {
-						// Không cần dừng ở đây vì logic đã được handle bên trong if/else
-					};
 				}, [doubleNext]); 
 				
-				// --- KẾT THÚC LOGIC AUDIO ĐÃ ĐIỀU CHỈNH ---
+				// --- KẾT THÚC LOGIC AUDIO ---
 				
-				// --- LOGIC WAKE LOCK / SCREEN TIMEOUT (CHỈ DÙNG GHI ĐIỂM) ---
-				// Sử dụng useRef để lưu trữ tham chiếu sentinel và timer
+				// --- LOGIC WAKE LOCK ĐƠN GIẢN (BẬT/TẮT) ---
 				const wakeLockRef = useRef(null);
-				const timeoutTimerRef = useRef(null);
-				// THÊM MỚI: Ref để truy cập hàm reset timer từ bên ngoài (executeRecord)
-				const resetTimerCallbackRef = useRef(() => {}); 
 
 				useEffect(() => {
 					// Hàm hủy khóa (Cho phép màn hình tắt)
@@ -261,7 +238,7 @@
 							try {
 								await wakeLockRef.current.release();
 								wakeLockRef.current = null;
-								// console.log("Wake Lock released: Screen can now turn off (System handled).");
+								console.log("Wake Lock released: System default timeout.");
 							} catch (err) {
 								console.error("Error releasing lock:", err);
 							}
@@ -270,67 +247,41 @@
 
 					// Hàm yêu cầu khóa (Giữ màn hình sáng)
 					const requestLock = async () => {
-						if (screenTimeout === 0) return; // Nếu chọn mặc định thì không làm gì
-						if (wakeLockRef.current) return; // Đã khóa rồi thì thôi
+						if (!('wakeLock' in navigator)) return; 
+						if (wakeLockRef.current) return; 
 
-						if ('wakeLock' in navigator) {
-							try {
-								const sentinel = await navigator.wakeLock.request('screen');
-								wakeLockRef.current = sentinel;
-								
-								// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null
-								sentinel.addEventListener('release', () => {
-									wakeLockRef.current = null;
-								});
-							} catch (err) {
-								console.error("Wake Lock request failed:", err);
-							}
+						try {
+							const sentinel = await navigator.wakeLock.request('screen');
+							wakeLockRef.current = sentinel;
+							
+							// Nếu hệ thống tự nhả (ví dụ đổi tab), set lại ref null
+							sentinel.addEventListener('release', () => {
+								wakeLockRef.current = null;
+								// Nếu bị hệ thống ngắt, cố gắng khóa lại nếu tính năng đang bật
+								if (isWakeLockEnabled) {
+									requestLock();
+								}
+							});
+							console.log("Wake Lock requested: Screen kept awake.");
+
+						} catch (err) {
+							console.error("Wake Lock request failed:", err);
 						}
-					};
-
-					// Hàm xử lý khi có tương tác (Reset timer) - Bây giờ chỉ được gọi nội bộ hoặc qua ref
-					const handleActivity = () => {
-						if (screenTimeout === 0) return;
-
-						// Mỗi khi gọi, nếu chưa khóa thì khóa lại (để màn hình sáng lên)
-						if (!wakeLockRef.current) {
-							requestLock();
-						}
-
-						// Xóa timer cũ đang đếm ngược
-						if (timeoutTimerRef.current) {
-							clearTimeout(timeoutTimerRef.current);
-						}
-
-						// Đặt timer mới: Sau X giây không làm gì -> Thả khóa
-						timeoutTimerRef.current = setTimeout(() => {
-							releaseLock();
-						}, screenTimeout * 1000);
 					};
 					
-					// Gắn hàm handleActivity vào ref để có thể gọi từ executeRecord
-					resetTimerCallbackRef.current = handleActivity; 
-
-					// Khởi chạy
-					if (screenTimeout > 0) {
-						// Kích hoạt ngay lần đầu: Yêu cầu khóa và bắt đầu đếm ngược
+					// --- LOGIC BẬT/TẮT ---
+					if (isWakeLockEnabled) {
 						requestLock();
-						handleActivity(); 
-
-						// LƯU Ý: ĐÃ LOẠI BỎ TẤT CẢ window.addEventListener(...) 
 					} else {
-						// Nếu chuyển về 0 (Mặc định), thả khóa ngay và xóa timer
-						if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+						// Khi tắt, thả khóa ngay
 						releaseLock();
 					}
 
-					// Cleanup khi unmount hoặc đổi setting
+					// Cleanup: Luôn thả khóa khi component unmount hoặc khi isWakeLockEnabled đổi
 					return () => {
-						if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
 						releaseLock();
-						// LƯU Ý: ĐÃ LOẠI BỎ TẤT CẢ window.removeEventListener(...)
 					};
-				}, [screenTimeout]); 
+				}, [isWakeLockEnabled]); 
 				// --- KẾT THÚC LOGIC WAKE LOCK ---
 
 
@@ -374,8 +325,8 @@
 					  const sessionData = {
 						  // Sử dụng timestamp làm ID phiên
 						  sessionId: `Session-${endTime}`, 
-						  startTime: startTime, // THÊM MỚI: Thời gian bắt đầu (từ state)
-						  endTime: endTime, // CẬP NHẬT: Thời gian kết thúc (lúc lưu)
+						  startTime: startTime, // Thời gian bắt đầu (từ state)
+						  endTime: endTime, // Thời gian kết thúc (lúc lưu)
 						  totalRoundsSet: totalRounds,
 						  roundsPlayed: history.filter(h => h.type === "record").length,
 						  finalResults: allFinalPlayers, // LƯU KẾT QUẢ CUỐI CỦA TẤT CẢ
@@ -392,7 +343,7 @@
 					  }
 					  
 					  const sessionData = createSessionData();
-					  const newSessionEntry = sessionData; // Dữ liệu phiên mới
+					  const newSessionEntry = sessionData; 
 
 					  console.log("Saving game session automatically to GitHub...");
 
@@ -419,7 +370,7 @@
 						  const fileData = await getResponse.json();
 						  currentSha = fileData.sha;
 						  
-						  // Fix: SỬ DỤNG HÀM AN TOÀN KHI DECODE
+						  // SỬ DỤNG HÀM AN TOÀN KHI DECODE
 						  const content = b64ToUnicode(fileData.content); 
 						  
 						  if (content) {
@@ -435,15 +386,15 @@
 						  
 					  } else if (getResponse.status === 404) {
 						  console.log("File data/session_history.json chưa tồn tại. Sẽ tạo mới.");
-						  existingHistory = []; // Bắt đầu với mảng rỗng
-						  currentSha = null; // Đảm bảo SHA là null khi tạo mới
+						  existingHistory = []; 
+						  currentSha = null; 
 					  } else {
 						   console.error("❌ Lỗi khi GET file:", getResponse.status);
-						   return; // Dừng nếu GET thất bại vì lý do khác (vd: token sai)
+						   return; 
 					  }
 					  
 					  // 3. Chuẩn bị nội dung mới
-					  const updatedHistory = [newSessionEntry, ...existingHistory]; // Thêm mới lên đầu
+					  const updatedHistory = [newSessionEntry, ...existingHistory]; 
 					  // SỬ DỤNG HÀM AN TOÀN KHI ENCODE
 					  const newContent = unicodeToB64(JSON.stringify(updatedHistory, null, 2));
 
@@ -471,7 +422,7 @@
 
 						  if (putResponse.ok) {
 							  console.log("✅ Session saved successfully to GitHub.");
-							  setIsSessionSaved(true); // Đánh dấu đã lưu thành công
+							  setIsSessionSaved(true); 
 						  } else {
 							  const result = await putResponse.json();
 							  console.error("❌ Failed to save session. Status:", putResponse.status, "Details:", result);
@@ -489,20 +440,20 @@
 					  }
 					  
 				  }, [gameEnded, isSessionSaved]);
-				  // --- KẾT THÚC LOGIC LƯU ---
 
 
-				  // Lưu trữ dữ liệu vào localStorage (ĐÃ CẬP NHẬT PREFIX)
+				  // Lưu trữ dữ liệu vào localStorage 
 				  useEffect(() => {
 					localStorage.setItem(getStorageKey("players"), JSON.stringify(players));
 					localStorage.setItem(getStorageKey("kickedPlayers"), JSON.stringify(kickedPlayers));
 					localStorage.setItem(getStorageKey("history"), JSON.stringify(history));
 					localStorage.setItem(getStorageKey("totalRounds"), JSON.stringify(totalRounds));
 					localStorage.setItem(getStorageKey("roundsStartCount"), JSON.stringify(roundsStartCount)); 
-					localStorage.setItem(getStorageKey("isSessionSaved"), JSON.stringify(isSessionSaved)); // LƯU TRẠNG THÁI MỚI
-					localStorage.setItem(getStorageKey("startTime"), JSON.stringify(startTime)); // *** THÊM MỚI ***
-					localStorage.setItem(getStorageKey("screenTimeout"), JSON.stringify(screenTimeout)); // *** LƯU CẤU HÌNH TIMEOUT ***
-				  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved, startTime, screenTimeout]); 
+					localStorage.setItem(getStorageKey("isSessionSaved"), JSON.stringify(isSessionSaved)); 
+					localStorage.setItem(getStorageKey("startTime"), JSON.stringify(startTime)); 
+					// *** THAY ĐỔI: Lưu trạng thái BẬT/TẮT Wake Lock ***
+					localStorage.setItem(getStorageKey("isWakeLockEnabled"), JSON.stringify(isWakeLockEnabled)); 
+				  }, [players, kickedPlayers, history, totalRounds, roundsStartCount, isSessionSaved, startTime, isWakeLockEnabled]); 
 
 				  // Điều chỉnh hàm showTempMessage
 				  const showTempMessage = (text, type = "info", duration = 2500, winnerName = "") => {
@@ -551,7 +502,7 @@
 				  }
 				  const cancelModal = () => setModal({ type: null, data: null });
 				  
-				  // HÀM RESET (ĐÃ CẬP NHẬT LOGIC XÓA LOCAL STORAGE AN TOÀN)
+				  // HÀM RESET 
 				  const resetGame = () => {
 					// Dừng nhạc nền khi reset
 					if (doubleMusic) {
@@ -563,10 +514,10 @@
 					setDoubleNext(false); setManualMode(false);
 					setTotalRounds(null); 
 					setRoundsStartCount(0);
-					setIsSessionSaved(false); // ĐẶT LẠI TRẠNG THÁI MỚI NÀY
-					setStartTime(null); // *** THÊM MỚI: Reset startTime ***
-					// KHÔNG RESET SCREEN TIMEOUT để tiện cho người dùng
-					clear9CayStorage(); // <- SỬ DỤNG HÀM XÓA CÓ PREFIX
+					setIsSessionSaved(false); 
+					setStartTime(null); 
+					// KHÔNG RESET WAKE LOCK
+					clear9CayStorage(); // <- XÓA LOCAL STORAGE
 					setModal({ type: null, data: null });
 					setSelectedPlayerName(""); 
 				  };
@@ -578,14 +529,12 @@
 						return;
 					}
 					
-					// Tính số ván đã chơi kể từ lần Set gần nhất
 					const roundsPlayedSinceLastSet = recordedRounds - roundsStartCount;
 
-					// 1. Force gameEnded to true by setting the goal to the rounds already played
-					// This forces effectiveRemainingRounds = 0
+					// 1. Force gameEnded to true 
 					setTotalRounds(roundsPlayedSinceLastSet); 
 					
-					// 2. Play game over audio (passing 0 to playRoundEndAudio)
+					// 2. Play game over audio 
 					playAudio('gameover.mp3');
 					setModal({ type: null, data: null });
 					showTempMessage("💰Nhớ banking sớm nhé các anh!", "info", 2000); 
@@ -593,7 +542,6 @@
 
 				const confirmSettle = () => {
 					if (gameEnded) return;
-					// Cần ít nhất 2 người chơi hoặc có lịch sử để tính tiền/lưu
 					if (players.length < 2 && history.length === 0) {
 						 return showTempMessage("⚠️ Chưa có người chơi hoặc ván nào để tính tiền!", "warning");
 					}
@@ -612,7 +560,7 @@
 					setModal({ type: 'record', data: null });
 				  };
 
-				  // Hàm thực hiện ghi điểm (executeRecord) - ĐÃ CHÈN LOGIC WAKE LOCK
+				  // Hàm thực hiện ghi điểm (executeRecord) - ĐÃ BỎ LOGIC WAKE LOCK
 				  const executeRecord = () => {
 					setModal({ type: null, data: null });
 
@@ -625,18 +573,12 @@
 					  return { ...p, score: p.score - pointPerLoser };
 					});
 					
-					// *** BỔ SUNG: GỌI HÀM RESET TIMER KHI GHI ĐIỂM ***
-					// Kiểm tra nếu screenTimeout > 0 và hàm reset tồn tại
-					if (screenTimeout > 0 && resetTimerCallbackRef.current) {
-						 resetTimerCallbackRef.current(); 
-					}
-					// *** KẾT THÚC BỔ SUNG ***
-
-					// *** THÊM MỚI: Ghi startTime nếu là ván 1 ***
+					// *** BỎ: KHÔNG CẦN RESET TIMER NỮA ***
+					
+					// Ghi startTime nếu là ván 1
 					if (recordedRounds === 0) { 
 						setStartTime(new Date().toISOString());
 					}
-					// *** KẾT THÚC THÊM MỚI ***
 
 					const changes = updatedPlayers.map((p, i) => ({
 					  name: p.name,
@@ -649,10 +591,9 @@
 					setPlayers(updatedPlayers);
 					setHistory(newHistory);
 					
-					// --- XỬ LÝ AUDIO ĐÃ CẬP NHẬT ---
+					// XỬ LÝ AUDIO 
 					playWinnerAudio(winner, wasDouble);
 					
-					// Tính số ván còn lại SAU khi ghi điểm
 					const newRecordedRounds = recordedRounds + 1;
 					const newRemainingRounds = totalRounds === null 
 						? null 
@@ -661,7 +602,6 @@
 					if (newRemainingRounds !== null) {
 						playRoundEndAudio(newRemainingRounds);
 					}
-					// --------------------
 
 					setWinner("");
 					setDoubleNext(false); // Reset Double Next
@@ -700,7 +640,7 @@
 					});
 				  };
 
-				  // Hàm thực hiện Hoàn tác (executeUndo) - ĐÃ SỬA LỖI TYPO
+				  // Hàm thực hiện Hoàn tác (executeUndo) 
 				  const executeUndo = () => {
 					const { lastRecord, undoRoundNum, lastRecordIndex } = modal.data;
 					setModal({ type: null, data: null }); 
@@ -743,7 +683,7 @@
 						setIsSessionSaved(false);
 					}
 					
-					// BỔ SUNG: Phát audio khi hoàn tác
+					// Phát audio khi hoàn tác
 					playAudio('hoantac.mp3');
 
 					showTempMessage(`↩️ Đã hoàn tác Ván ${undoRoundNum}.`, "info");
@@ -802,14 +742,14 @@
 				  const total = [...players, ...kickedPlayers].reduce((s, p) => s + p.score, 0);
 				  const totalOk = Math.abs(total) < 1e-6;
 
-				  // Hàm toggleManualMode (ĐÃ CẬP NHẬT AUDIO)
+				  // Hàm toggleManualMode 
 				  const toggleManualMode = () => {
 					if (manualMode) {
 						if (!totalOk) {
 							showTempMessage("⚠️ Tổng điểm không bằng 0, vui lòng kiểm tra lại!", "error");
 							return;
 						}
-						// BỔ SUNG: Phát audio khi hoàn thành nhập điểm
+						// Phát audio khi hoàn thành nhập điểm
 						playAudio('nhapdiemthucong.mp3'); 
 					}
 					setManualMode(!manualMode);
@@ -824,7 +764,7 @@
 					setModal({ type: 'setRounds', data: null });
 				  };
 
-				  // LOGIC applySetRounds (ĐÃ CẬP NHẬT AUDIO)
+				  // LOGIC applySetRounds 
 				  const applySetRounds = () => {
 					const num = parseInt(roundInput);
 					if (isNaN(num) || num <= 0)
@@ -840,7 +780,7 @@
 					setRoundInput("");
 					showTempMessage(`✅ Đã đặt còn ${num} ván nữa!`);
 					
-					// BỔ SUNG: Phát audio khi đặt số ván
+					// Phát audio khi đặt số ván
 					playAudio('dasetsovan.mp3');
 				  };
 
@@ -883,22 +823,19 @@
 						  </div>
 						)}
 					  
-					  {/* TÙY CHỌN MÀN HÌNH WAKE LOCK */}
+					  {/* *** THAY THẾ: NÚT BẬT/TẮT WAKE LOCK *** */}
 					  <div className="mb-4 flex justify-center items-center gap-2 mt-4">
-						  <label className="text-sm text-gray-600 font-semibold">💡 Timeout màn hình:</label>
-						  <select 
-							className="border rounded text-sm px-2 py-1 bg-gray-50 focus:ring-2 focus:ring-green-400 outline-none"
-							value={screenTimeout}
-							onChange={(e) => setScreenTimeout(Number(e.target.value))}
+						  <label className="text-sm text-gray-600 font-semibold">💡 Giữ màn hình sáng:</label>
+						  <button
+							  className={`px-3 py-1 rounded text-sm font-bold transition-all ${
+								  isWakeLockEnabled ? "bg-green-500 text-white" : "bg-gray-300 text-gray-700"
+							  }`}
+							  onClick={() => setIsWakeLockEnabled(!isWakeLockEnabled)}
 						  >
-							<option value={0}>Mặc định (Tắt theo máy)</option>
-							<option value={30}>Giữ sáng 30 giây</option>
-							<option value={60}>Giữ sáng 60 giây</option>
-							<option value={120}>Giữ sáng 120 giây (2p)</option>
-							<option value={180}>Giữ sáng 180 giây (3p)</option>
-							<option value={300}>Giữ sáng 300 giây (5p)</option>
-						  </select>
+							  {isWakeLockEnabled ? "BẬT" : "TẮT"}
+						  </button>
 					  </div>
+					  {/* *** END THAY THẾ *** */}
 
 					  {gameEnded && (
 						<div className="text-center text-red-600 font-bold mb-3 text-lg">
@@ -1093,7 +1030,7 @@
 						</>
 					  )}
 					  
-					  {/* Nút Tính tiền và Reset (ĐÃ CHIA ĐÔI ĐỘ RỘNG) */}
+					  {/* Nút Tính tiền và Reset */}
 					  <div className="flex gap-2 mt-4">
 						<button 
 						   className={`flex-1 bg-orange-500 text-white px-3 py-2 rounded ${gameEnded ? "opacity-50 cursor-not-allowed" : ""}`} 
