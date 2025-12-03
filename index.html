@@ -1039,7 +1039,7 @@
 							{[...players].sort((a, b) => b.score - a.score).map((p, i) => (
 							  <li
 								key={p.name} 
-								className={`flex justify-between items-center border rounded-lg px-2 py-2 transition ${ /* Tăng Padding */
+								className={`flex justify-between items-center border rounded-lg px-1 py-1 transition ${ /* Tăng Padding */
 								  winner === p.name 
 									? "winner-glow font-semibold" 
 									// CẬP NHẬT: Thêm Dark Mode cho item không phải Winner
@@ -1401,6 +1401,7 @@
 			  </script>
 </body>
 </html>
+
 
 
 
