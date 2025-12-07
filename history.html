@@ -54,10 +54,14 @@
 				const month = now.getMonth() + 1;
 				return `${now.getFullYear()}-${month.toString().padStart(2, '0')}`;
 			};
+			
+			const parseSessionTime = (session) => {
+				// FIX: Ưu tiên endTime, sau đó là timestamp, cuối cùng là date
+				return session.endTime || session.timestamp || session.date;
+			}
 
 			const getSessionMonthKey = (session) => {
-				// FIX: Ưu tiên endTime, sau đó là timestamp, cuối cùng là date
-				const timeStr = session.endTime || session.timestamp || session.date; 
+				const timeStr = parseSessionTime(session);
 				
 				if (!timeStr) return 'UNKNOWN'; // Trả về Unknown nếu không tìm thấy bất kỳ trường nào
 				try {
@@ -76,6 +80,37 @@
 				const [year, month] = key.split('-');
 				return `🗓️ Tháng ${month}/${year}`;
 			};
+            
+            const formatDateTime = (timeStr) => {
+                if (!timeStr) return 'N/A';
+                try {
+                    const date = new Date(timeStr);
+                    if (isNaN(date.getTime())) return 'N/A';
+                    return date.toLocaleString('vi-VN', { 
+                        hour: '2-digit', minute: '2-digit', 
+                        day: '2-digit', month: '2-digit', year: 'numeric' 
+                    });
+                } catch (e) {
+                    return 'N/A';
+                }
+            };
+            
+            // --- HÀM SẮP XẾP PHIÊN CHƠI (MỚI NHẤT LÊN ĐẦU) ---
+            const sortSessionsByTime = (sessions) => {
+                return [...sessions].sort((a, b) => {
+                    const timeA = parseSessionTime(a);
+                    const timeB = parseSessionTime(b);
+                    
+                    // Xử lý các trường hợp không có thời gian
+                    if (!timeA && !timeB) return 0;
+                    if (!timeA) return 1; // a không có, đẩy xuống cuối
+                    if (!timeB) return -1; // b không có, đẩy xuống cuối
+
+                    // So sánh: b - a để mới nhất (thời gian lớn hơn) lên đầu
+                    return new Date(timeB).getTime() - new Date(timeA).getTime();
+                });
+            }
+
 
 			const fetchHistoryFromGitHub = async () => {
 				const response = await fetch(GITHUB_API_URL, {
@@ -110,6 +145,64 @@
 					totalScore: scoresMap[name]
 				})).sort((a, b) => b.totalScore - a.totalScore); 
 			};
+            
+            // --- LOGIC TÍNH TỔNG SỐ VÁN ĐÃ CHƠI ---
+            const calculateTotalRounds = (sessions) => {
+                if (!sessions || sessions.length === 0) return 0;
+                // roundsPlayed là tổng số ván đã chơi của phiên chơi.
+                return sessions.reduce((total, session) => {
+                    const rounds = parseInt(session.roundsPlayed, 10) || 0;
+                    return total + rounds;
+                }, 0);
+            };
+            
+            // --- COMPONENT CHI TIẾT PHIÊN CHƠI GẦN ĐÂY ---
+            function SessionHistoryDetails({ sessions }) {
+                if (!sessions || sessions.length === 0) return null;
+                
+                // Lấy 5 phiên gần nhất (đã sắp xếp ở useMemo)
+                const latestSessions = sessions.slice(0, 5);
+                
+                return (
+                    <div className="mt-8 mb-10 mx-auto max-w-2xl bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden">
+                        <div className="bg-gradient-to-r from-green-50 to-teal-50 px-5 py-4 border-b border-gray-200">
+                            <h2 className="text-lg font-bold text-gray-800 uppercase tracking-tight flex items-center">
+                                📜 Chi Tiết 5 Phiên Gần Nhất 
+                                <span className="ml-2 text-sm font-normal text-gray-500">({latestSessions.length} phiên)</span>
+                            </h2>
+                        </div>
+                        
+                        <div className="divide-y divide-gray-100 p-4">
+                            {latestSessions.map((session, index) => (
+                                <div key={session.sessionId || index} className="py-4 last:pb-0">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="text-sm font-bold text-teal-700">
+                                            Phiên #{latestSessions.length - index} 
+                                        </h3>
+                                        <div className="text-xs text-gray-500 font-medium text-right">
+                                            <span className="block">Thời gian: {formatDateTime(parseSessionTime(session))}</span>
+                                            <span className="block mt-0.5">Ván đã chơi: <strong className="text-gray-700">{session.roundsPlayed || 0}</strong></span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                        {(session.finalResults || []).map((player, pIndex) => (
+                                            <div key={pIndex} className="flex justify-between items-center text-gray-700">
+                                                <span className="history-player-name text-xs sm:text-sm mr-2">{player.name}</span>
+                                                <span className={`final-score text-xs sm:text-sm ${
+                                                    player.score > 0 ? 'text-green-600' : 
+                                                    player.score < 0 ? 'text-red-500' : 'text-gray-500'
+                                                }`}>
+                                                    {player.score > 0 ? `+${player.score}` : player.score}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            }
 
 
 			function HistoryApp() {
@@ -174,15 +267,21 @@
 					});
 				}, [sessions]);
 
-				// Lọc dữ liệu
+				// Lọc dữ liệu và sắp xếp (Mới nhất lên đầu)
 				const filteredSessions = useMemo(() => {
 					if (!sessions) return [];
-					if (filterType === 'ALL') return sessions;
-					return sessions.filter(s => getSessionMonthKey(s) === filterType);
+					const filtered = filterType === 'ALL' 
+						? sessions 
+						: sessions.filter(s => getSessionMonthKey(s) === filterType);
+                        
+					return sortSessionsByTime(filtered); // Sắp xếp sau khi lọc
 				}, [sessions, filterType]);
 
 				// Tính toán BXH
 				const leaderboard = useMemo(() => calculateScores(filteredSessions), [filteredSessions]);
+                
+                // Tính toán Tổng số ván đã chơi
+                const totalRoundsPlayed = useMemo(() => calculateTotalRounds(filteredSessions), [filteredSessions]);
 
 				// Render
 				if (loading) return (
@@ -236,7 +335,7 @@
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 border-b border-gray-200 flex justify-between items-center">
                                     <div>
                                         <h2 className="text-lg font-bold text-gray-800 uppercase tracking-tight">Bảng Xếp Hạng</h2>
-                                        <p className="text-xs text-gray-500 font-medium mt-0.5">Dựa trên {filteredSessions.length} phiên chơi</p>
+                                        <p className="text-xs text-gray-500 font-medium mt-0.5">Dựa trên **{filteredSessions.length} phiên** và **{totalRoundsPlayed} ván** đã chơi</p>
                                     </div>
                                     <div className="h-10 w-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-inner text-xl">👑</div>
                                 </div>
@@ -266,6 +365,10 @@
                                 </div>
                             </div>
                         )}
+                        
+                        {/* HIỂN THỊ CHI TIẾT 5 PHIÊN GẦN NHẤT */}
+                        <SessionHistoryDetails sessions={filteredSessions} />
+
 
 						<div className="text-center pb-10">
 							<a href="index.html" className="inline-flex items-center bg-gray-800 text-white px-6 py-3 rounded-full font-bold hover:bg-gray-900 transition shadow-lg text-sm uppercase tracking-wider transform hover:-translate-y-0.5">
@@ -281,5 +384,3 @@
 		</script>
 </body>
 </html>
-
-
