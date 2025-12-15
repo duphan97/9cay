@@ -1,5 +1,34 @@
 [
   {
+    "sessionId": "Session-2025-12-15T11:25:59.874Z",
+    "startTime": "2025-12-15T10:15:11.027Z",
+    "endTime": "2025-12-15T11:25:59.874Z",
+    "totalRoundsSet": 10,
+    "roundsPlayed": 44,
+    "finalResults": [
+      {
+        "name": "Định Ngô",
+        "score": -3,
+        "status": "Playing"
+      },
+      {
+        "name": "Nhân Trần",
+        "score": 0,
+        "status": "Playing"
+      },
+      {
+        "name": "Tuấn Nguyễn",
+        "score": -2,
+        "status": "Playing"
+      },
+      {
+        "name": "Trúc Trần",
+        "score": 5,
+        "status": "Playing"
+      }
+    ]
+  },
+  {
     "sessionId": "Session-2025-12-15T06:37:03.342Z",
     "startTime": "2025-12-15T05:19:42.906Z",
     "endTime": "2025-12-15T06:37:03.342Z",
