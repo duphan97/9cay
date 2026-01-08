@@ -1,0 +1,26 @@
+[
+  {
+    "sessionId": "Session-2026-01-08T11:31:43.174Z",
+    "startTime": "2026-01-08T11:08:34.758Z",
+    "endTime": "2026-01-08T11:31:43.174Z",
+    "totalRoundsSet": 20,
+    "roundsPlayed": 20,
+    "finalResults": [
+      {
+        "name": "Dũng Nguyễn",
+        "score": -17,
+        "status": "Playing"
+      },
+      {
+        "name": "Dự Phan",
+        "score": 14,
+        "status": "Playing"
+      },
+      {
+        "name": "Nhân Trần",
+        "score": 3,
+        "status": "Playing"
+      }
+    ]
+  }
+]
